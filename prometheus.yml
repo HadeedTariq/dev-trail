@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s # How often Prometheus fetches metrics
+
+scrape_configs:
+  - job_name: "go-crm"
+    metrics_path: "/metrics" # The endpoint Go will expose
+    static_configs:
+      # Use the container name 'web' and port 8080 on the Docker network
+      - targets:
+          - "web:8080"
+        labels:
+          app: "go-crm"

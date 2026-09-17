@@ -1,0 +1,51 @@
+.PHONY: help
+help:
+	@echo "Available commands:"
+	@echo "  make create-db    - Create the MySQL database"
+	@echo "  make run          - Run the application"
+	@echo "  make build        - Build the application"
+	@echo "  make test         - Run tests"
+	@echo "  make migrate      - Run database migrations"
+	@echo "  make clean        - Clean build artifacts"
+	@echo "  make create-admin - Create an admin user"
+	@echo "  make swagger      - Regenerate api/swagger.json and api/swagger.yaml"
+
+.PHONY: create-db
+create-db:
+	mysql -u root < scripts/create_database.sql
+
+.PHONY: run
+run:
+	go run cmd/main.go
+
+.PHONY: build
+build:
+	go build -o bin/gophercrm cmd/main.go
+
+.PHONY: test
+test:
+	go test ./...
+
+.PHONY: migrate
+migrate: run
+
+.PHONY: clean
+clean:
+	rm -rf bin/
+
+.PHONY: deps
+deps:
+	go mod download
+	go mod tidy
+
+.PHONY: create-admin
+create-admin:
+	@bin/create-admin
+
+.PHONY: build-tools
+build-tools:
+	go build -o bin/create-admin cmd/create-admin/main.go
+
+.PHONY: swagger
+swagger:
+	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/main.go --output api --outputTypes json,yaml --parseDependency

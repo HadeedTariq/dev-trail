@@ -1,0 +1,139 @@
+# ---------------------------------------------------------------------------
+# Go build artifacts
+# ---------------------------------------------------------------------------
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+__debug_bin
+go.work
+go.work.sum
+# vendor/
+
+# ---------------------------------------------------------------------------
+# Build output
+# ---------------------------------------------------------------------------
+/bin/
+/build/
+/dist/
+/gocrm
+/gophercrm
+/main
+
+# ---------------------------------------------------------------------------
+# Test and coverage output
+# ---------------------------------------------------------------------------
+coverage.out
+coverage.html
+profile.cov
+/coverage/
+gocrm-ui/coverage/
+gocrm-ui/test-results/
+gocrm-ui/playwright-report/
+gocrm-ui/blob-report/
+gocrm-ui/playwright/.cache/
+
+# ---------------------------------------------------------------------------
+# Frontend (gocrm-ui)
+# ---------------------------------------------------------------------------
+node_modules/
+gocrm-ui/dist/
+gocrm-ui/dist-ssr/
+.pnp
+.pnp.js
+*.tsbuildinfo
+.eslintcache
+
+# ---------------------------------------------------------------------------
+# Environment and secrets
+# ---------------------------------------------------------------------------
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+config/secrets.yaml
+config/local.yaml
+*.pem
+*.key
+*.crt
+
+# ---------------------------------------------------------------------------
+# Logs, databases and dumps
+# ---------------------------------------------------------------------------
+*.log
+logs/
+server.log
+*.db
+*.sqlite
+*.sqlite3
+*.sql.gz
+*.dump
+
+# ---------------------------------------------------------------------------
+# Local editor and tooling workspace
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.lsp.json
+*.swp
+*.swo
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+CLAUDE.md
+.claude/
+agents/
+
+# ---------------------------------------------------------------------------
+# OS generated files
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Temporary and backup files
+# ---------------------------------------------------------------------------
+*.tmp
+*.temp
+/tmp/
+tmp/
+.air.toml
+*.bak
+*.backup
+cookies.txt
+gocrm-ui/cookies.txt
+
+# ---------------------------------------------------------------------------
+# Generated reports (ephemeral, not part of the repo)
+# ---------------------------------------------------------------------------
+API_DOCUMENTATION.md
+FINAL_STATUS_REPORT.md
+FIXES_PROGRESS.md
+SWAGGER_USAGE_GUIDE.md
+task-form-validation-demo.md
+docs/_build/
+
+# ---------------------------------------------------------------------------
+# Keep documentation images tracked (referenced from README.md)
+# ---------------------------------------------------------------------------
+!docs/img/
+!docs/img/**

@@ -1,0 +1,74 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    correlations:
+      - targetUID: loki
+        label: "View logs for this series"
+        description: "Jump from a metric point to the matching request logs"
+        config:
+          type: query
+          field: Value
+          target:
+            expr: '{app="go-crm"} | json | path="${__data.fields.Value.labels.path}" | method="${__data.fields.Value.labels.method}"'
+
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: '"trace_id":"(\w+)"'
+          name: TraceID
+          url: "$${__value.raw}"
+    correlations:
+      - targetUID: prometheus
+        label: "Request rate for this endpoint"
+        description: "See how often this path+method is hit"
+        config:
+          type: query
+          field: path
+          target:
+            expr: 'sum(rate(http_requests_total{path="${__data.fields.path}", method="${__data.fields.method}"}[5m]))'
+      - targetUID: prometheus
+        label: "Rate of this status code"
+        description: "See how often this status code occurs app-wide"
+        config:
+          type: query
+          field: status
+          target:
+            expr: 'sum(rate(http_requests_total{status="${__data.fields.status}"}[5m])) by (path)'
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        filterByTraceID: true
+        customQuery: true
+        query: '{app="go-crm"} | json | trace_id="${__trace.traceId}"'
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        queries:
+          - name: "Request rate"
+            query: "sum(rate(http_requests_total{$$__tags}[5m]))"
+      serviceMap:
+        datasourceUid: prometheus

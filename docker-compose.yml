@@ -1,0 +1,102 @@
+# Database-only Compose setup for local Go & React development.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    container_name: gocrm-web
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+  db:
+    image: postgres:17-alpine
+    container_name: react-starterkit-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Map .env values to standard PostgreSQL container parameters
+      POSTGRES_DB: ${DB_NAME:-gocrm}
+      POSTGRES_USER: ${DB_USER:-gocrm}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-gocrm-dev-password}
+    ports:
+      # Exposes PostgreSQL default port to host (localhost:5432)
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${DB_USER:-gocrm} -d ${DB_NAME:-gocrm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  fluent-bit:
+    image: fluent/fluent-bit:3.0
+    container_name: crm-fluent
+
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    depends_on:
+      - loki
+
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: crm-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: crm-loki
+
+    ports:
+      - "3100:3100"
+
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: crm-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=correlations
+    depends_on:
+      - loki
+    restart: unless-stopped
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: crm-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/tmp/tempo
+    ports:
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "3200:3200" # Tempo internal API
+
+volumes:
+  db_data:
+  grafana_data:
+  tempo_data:
