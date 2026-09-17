@@ -11,7 +11,7 @@ const AuthLayout = ({ children }: AuthProtectorProps) => {
   const { isError, isPending } = useAuthHandler();
 
   if (isPending) return <PageLoadingBar />;
-  if (isError) return <Navigate to="/" />;
+  if (isError) return <Navigate to="/authenticate/login" />;
 
   return <>{children}</>;
 };

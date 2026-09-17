@@ -154,12 +154,13 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 	tokenService := service.NewTokenService(cfg.JWT, userRepo)
 
 	authHandler := handler.NewAuthHandler(userService, tokenService, cfg.JWT)
+	workspaceHandler := handler.NewWorkspaceHandler()
 
 	// Routes
 	public := router.Group("")
 	{
 		authRoutes := public.Group("/auth")
-		authRoutes.Use(middleware.RateLimitStrict())
+		// authRoutes.Use(middleware.RateLimitStrict())
 		{
 			authRoutes.POST("/register", authHandler.Register)
 			authRoutes.POST("/otp-email-checker", authHandler.OtpEmailChecker)
@@ -170,5 +171,10 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 		{
 			authRoutes.GET("/", authHandler.AuthenticateUser)
 		}
+	}
+	protected := router.Group("")
+	protected.Use(middleware.CheckAuth(tokenService))
+	{
+		handler.SetupWorkspaceRoutes(protected, workspaceHandler)
 	}
 }

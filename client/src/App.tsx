@@ -42,20 +42,34 @@ function App() {
   return (
     <Suspense fallback={<PageLoadingBar />}>
       <Routes>
-        <Route path="/" element={<R.Layout />}>
+        <Route
+          path="/"
+          element={
+            <R.AuthLayout>
+              <R.Layout />
+            </R.AuthLayout>
+          }
+        >
           <Route index element={<R.HomePage />} />
         </Route>
 
-        <Route
-          path="/authenticate"
-          element={
-            <R.AuthProtector>
-              <R.Layout />
-            </R.AuthProtector>
-          }
-        >
-          <Route path="login" element={<R.LoginUser />} />
-          <Route path="register" element={<R.RegisterUser />} />
+        <Route path="/authenticate">
+          <Route
+            path="login"
+            element={
+              <R.AuthProtector>
+                <R.LoginUser />
+              </R.AuthProtector>
+            }
+          />
+          <Route
+            path="register"
+            element={
+              <R.AuthProtector>
+                <R.RegisterUser />
+              </R.AuthProtector>
+            }
+          />
         </Route>
       </Routes>
     </Suspense>

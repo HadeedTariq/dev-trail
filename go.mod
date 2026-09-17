@@ -3,7 +3,6 @@ module github.com/HadeedTariq/dev-trail
 go 1.25.0
 
 require (
-	github.com/HadeedTariq/go-react-starter-kit v0.0.0-20260916053641-6de6e4e64a9a
 	github.com/gin-contrib/cors v1.7.5
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/validator/v10 v10.30.3
