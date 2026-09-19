@@ -20,3 +20,12 @@ type UserRepository interface {
 	) (pgtype.UUID, error)
 	GetById(ctx context.Context, id pgtype.UUID) (*sqlc.User, error)
 }
+
+type WorkspaceRepository interface {
+	Create(
+		ctx context.Context,
+		name string,
+		createdBy pgtype.UUID,
+		image pgtype.Text,
+	) (*sqlc.CreateWorkspaceRow, error)
+}

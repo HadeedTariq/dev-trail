@@ -97,7 +97,7 @@ func main() {
 func setupRouter(cfg *config.Config, dbPool *pgxpool.Pool) *gin.Engine {
 	// _, err := dbPool.Exec(
 	// 	context.Background(),
-	// 	"DELETE FROM users WHERE created_at < NOW()",
+	// 	"select * from workspaces",
 	// )
 
 	// if err != nil {
@@ -147,14 +147,18 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 
 	// Pass pool and sqlc queries to repositories
 	userRepo := repository.NewUserRepository(dbPool, queries)
+	workspaceRepo := repository.NewWorkspaceRepository(dbPool, queries)
 
 	appMailer := mailer.NewFromConfig(cfg.SMTP)
 
 	userService := service.NewUserService(userRepo, appMailer)
 	tokenService := service.NewTokenService(cfg.JWT, userRepo)
+	workspaceService := service.NewWorkspaceService(workspaceRepo)
+	cloundinary, err := utils.NewCloudinary(cfg.Cloudinary)
+	imageService := service.NewImageService(cloundinary)
 
 	authHandler := handler.NewAuthHandler(userService, tokenService, cfg.JWT)
-	workspaceHandler := handler.NewWorkspaceHandler()
+	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, imageService)
 
 	// Routes
 	public := router.Group("")

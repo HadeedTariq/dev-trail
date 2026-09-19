@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (CreateWorkspaceRow, error)
 	FindActiveOtp(ctx context.Context, email string) (EmailOtp, error)
 	FindUserByEmail(ctx context.Context, email pgtype.Text) (User, error)
 	FindUserByID(ctx context.Context, id pgtype.UUID) (User, error)

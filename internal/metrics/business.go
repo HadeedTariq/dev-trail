@@ -21,4 +21,20 @@ var (
 		},
 		[]string{"operation"},
 	)
+
+	WorkspaceOperationsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "workspace_operations_total",
+			Help: "Total number of workspace service operations",
+		},
+		[]string{"operation", "status"},
+	)
+
+	WorkspaceOperationDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "workspace_operation_duration_seconds",
+			Help: "Duration of workspace service operations in seconds",
+		},
+		[]string{"operation"},
+	)
 )

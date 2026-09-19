@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"mime/multipart"
 
 	repo "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
 )
@@ -67,4 +68,17 @@ type TokenService interface {
 	VerifyRefreshToken(
 		tokenString string,
 	) (*RefreshTokenClaims, error)
+}
+
+type WorkspaceService interface {
+	CreateWorkspace(
+		ctx context.Context,
+		name string,
+		createdBy string,
+		image string,
+	) (workspace *repo.CreateWorkspaceRow, err error)
+}
+
+type ImageService interface {
+	Upload(context.Context, *multipart.FileHeader) (string, error)
 }

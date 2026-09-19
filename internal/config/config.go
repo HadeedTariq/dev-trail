@@ -11,15 +11,21 @@ import (
 )
 
 type Config struct {
-	Database DatabaseConfig
-	Server   ServerConfig
-	JWT      JWTConfig
-	Logging  LoggingConfig
-	API      APIConfig
-	SMTP     SMTPConfig
-	App      AppConfig
+	Database   DatabaseConfig
+	Cloudinary CloudinaryConfig
+	Server     ServerConfig
+	JWT        JWTConfig
+	Logging    LoggingConfig
+	API        APIConfig
+	SMTP       SMTPConfig
+	App        AppConfig
 }
 
+type CloudinaryConfig struct {
+	CLOUDINARY_CLOUD_NAME string
+	CLOUDINARY_API_KEY    string
+	CLOUDINARY_API_SECRET string
+}
 type DatabaseConfig struct {
 	Host     string
 	Port     int
@@ -127,6 +133,11 @@ func Load() (*Config, error) {
 	}
 
 	config := &Config{
+		Cloudinary: CloudinaryConfig{
+			CLOUDINARY_CLOUD_NAME: getEnv("CLOUDINARY_CLOUD_NAME", "localhost"),
+			CLOUDINARY_API_KEY:    getEnv("CLOUDINARY_API_KEY", "23233"),
+			CLOUDINARY_API_SECRET: getEnv("CLOUDINARY_API_SECRET", "gocrm"),
+		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnvAsInt("DB_PORT", 5432),
