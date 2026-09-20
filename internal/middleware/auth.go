@@ -26,7 +26,7 @@ func CheckAuth(tokenService service.TokenService) gin.HandlerFunc {
 		}
 
 		c.Set("user", claims)
-		c.Set("user_id", claims.ID)
+		c.Set("user_id", claims.UserID)
 		c.Set("user_name", claims.UserName)
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)

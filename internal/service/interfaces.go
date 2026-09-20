@@ -77,6 +77,10 @@ type WorkspaceService interface {
 		createdBy string,
 		image string,
 	) (workspace *repo.CreateWorkspaceRow, err error)
+	GetUserWorkspaces(
+		ctx context.Context,
+		userID string,
+	) (workspaces []repo.FindWorkspacesByUserIDRow, err error)
 }
 
 type ImageService interface {

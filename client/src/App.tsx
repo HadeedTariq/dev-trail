@@ -51,6 +51,7 @@ function App() {
           }
         >
           <Route index element={<R.HomePage />} />
+          <Route path="create-workspace" element={<R.CreateWorkSpace />} />
         </Route>
 
         <Route path="/authenticate">

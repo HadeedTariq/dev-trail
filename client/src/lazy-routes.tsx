@@ -1,18 +1,21 @@
 import React from "react";
 
 export const HomePage = React.lazy(() => import("./pages/app/routes/HomePage"));
+export const CreateWorkSpace = React.lazy(
+  () => import("./pages/app/routes/workspace/CreateWorkSpace")
+);
 export const Layout = React.lazy(() => import("./pages/app/components/Layout"));
 export const AuthProtector = React.lazy(
-  () => import("./pages/auth/components/AuthProtector"),
+  () => import("./pages/auth/components/AuthProtector")
 );
 
 export const RegisterUser = React.lazy(
-  () => import("./pages/auth/routes/RegisterUser"),
+  () => import("./pages/auth/routes/RegisterUser")
 );
 export const LoginUser = React.lazy(
-  () => import("./pages/auth/routes/LoginUser"),
+  () => import("./pages/auth/routes/LoginUser")
 );
 
 export const AuthLayout = React.lazy(
-  () => import("./pages/app/components/AuthLayout"),
+  () => import("./pages/app/components/AuthLayout")
 );

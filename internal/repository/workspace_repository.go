@@ -37,3 +37,7 @@ func (r *workspaceRepository) Create(
 
 	return &workspace, nil
 }
+
+func (r *workspaceRepository) FindByUserID(ctx context.Context, userID pgtype.UUID) ([]sqlc.FindWorkspacesByUserIDRow, error) {
+	return r.queries.FindWorkspacesByUserID(ctx, userID)
+}

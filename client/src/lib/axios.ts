@@ -22,5 +22,6 @@ const createProtectedApi = (basePath: string) => {
 };
 
 const authApi = createProtectedApi("/auth");
+const workspaceApi = createProtectedApi("/workspace");
 
-export { authApi };
+export { authApi, workspaceApi };

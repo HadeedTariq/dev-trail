@@ -154,8 +154,11 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 	userService := service.NewUserService(userRepo, appMailer)
 	tokenService := service.NewTokenService(cfg.JWT, userRepo)
 	workspaceService := service.NewWorkspaceService(workspaceRepo)
-	cloundinary, err := utils.NewCloudinary(cfg.Cloudinary)
-	imageService := service.NewImageService(cloundinary)
+	cloudinaryClient, err := utils.NewCloudinary(cfg.Cloudinary)
+	if err != nil {
+		log.Fatalf("Failed to initialize Cloudinary: %v", err)
+	}
+	imageService := service.NewImageService(cloudinaryClient)
 
 	authHandler := handler.NewAuthHandler(userService, tokenService, cfg.JWT)
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, imageService)

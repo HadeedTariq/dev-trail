@@ -82,3 +82,58 @@ func (ws *workspaceService) CreateWorkspace(
 
 	return workspace, nil
 }
+
+func (ws *workspaceService) GetUserWorkspaces(
+	ctx context.Context,
+	userID string,
+) (workspaces []repo.FindWorkspacesByUserIDRow, err error) {
+	start := time.Now()
+
+	tr := otel.Tracer("workspaceService")
+	ctx, span := tr.Start(ctx, "workspaceService.GetUserWorkspaces")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("workspace.user_id", userID),
+	)
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.WorkspaceOperationDuration.
+			WithLabelValues("get").
+			Observe(duration)
+
+		if err != nil {
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("get", "error").
+				Inc()
+			span.RecordError(err)
+		} else {
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("get", "success").
+				Inc()
+		}
+	}()
+
+	parsedUserID, parseErr := uuid.Parse(userID)
+	if parseErr != nil {
+		err = fmt.Errorf("invalid user ID: %w", parseErr)
+		return nil, err
+	}
+
+	userUUID := pgtype.UUID{
+		Bytes: parsedUserID,
+		Valid: true,
+	}
+
+	workspaces, repoErr := ws.workspaceRepo.FindByUserID(
+		ctx,
+		userUUID,
+	)
+	if repoErr != nil {
+		err = fmt.Errorf("failed to fetch user workspaces: %w", repoErr)
+		return nil, err
+	}
+
+	return workspaces, nil
+}

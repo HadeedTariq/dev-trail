@@ -9,12 +9,12 @@ import (
 )
 
 type imageService struct {
-	cloudinary *cloudinary.Cloudinary
+	cloudinaryClient *cloudinary.Cloudinary
 }
 
-func NewImageService(cloudinary *cloudinary.Cloudinary) ImageService {
+func NewImageService(cloudinaryClient *cloudinary.Cloudinary) ImageService {
 	return &imageService{
-		cloudinary: cloudinary,
+		cloudinaryClient: cloudinaryClient,
 	}
 }
 
@@ -28,7 +28,7 @@ func (s *imageService) Upload(
 	}
 	defer src.Close()
 
-	uploadResult, err := s.cloudinary.Upload.Upload(
+	uploadResult, err := s.cloudinaryClient.Upload.Upload(
 		ctx,
 		src,
 		uploader.UploadParams{

@@ -59,3 +59,52 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 	)
 	return i, err
 }
+
+const findWorkspacesByUserID = `-- name: FindWorkspacesByUserID :many
+SELECT
+    id,
+    name,
+    created_by,
+    image,
+    created_at,
+    updated_at
+FROM workspaces
+WHERE created_by = $1
+ORDER BY created_at DESC
+`
+
+type FindWorkspacesByUserIDRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	Image     pgtype.Text        `json:"image"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) FindWorkspacesByUserID(ctx context.Context, createdBy pgtype.UUID) ([]FindWorkspacesByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, findWorkspacesByUserID, createdBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindWorkspacesByUserIDRow
+	for rows.Next() {
+		var i FindWorkspacesByUserIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatedBy,
+			&i.Image,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

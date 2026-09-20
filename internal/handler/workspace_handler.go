@@ -68,3 +68,37 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 	utils.LogHandlerResponse(logger, http.StatusCreated, response)
 	utils.RespondSuccess(c, http.StatusCreated, response)
 }
+
+func (h *WorkspaceHandler) GetWorkspaces(c *gin.Context) {
+	logger := utils.LogHandlerStart(c, "WorkspaceHandler.GetWorkspaces")
+
+	userId, _ := c.Get("user_id")
+
+	workspaces, err := h.workspaceService.GetUserWorkspaces(
+		c.Request.Context(),
+		userId.(string),
+	)
+	if err != nil {
+		logger.WithError(err).Error("failed to fetch user workspaces")
+		utils.RespondInternalError(
+			c,
+		)
+		return
+	}
+
+	response := gin.H{
+		"workspaces": workspaces,
+	}
+
+	utils.LogHandlerResponse(
+		logger,
+		http.StatusOK,
+		response,
+	)
+
+	utils.RespondSuccess(
+		c,
+		http.StatusOK,
+		response,
+	)
+}
