@@ -29,3 +29,25 @@ SELECT
 FROM workspaces
 WHERE created_by = $1
 ORDER BY created_at DESC;
+
+-- name: UpdateWorkspace :one
+UPDATE workspaces
+SET
+    name = $2,
+    image = $3,
+    updated_at = NOW()
+WHERE id = $1 and created_by=$4
+RETURNING
+    id;
+
+
+-- name: FindUserWorkspacesById :one
+SELECT
+    id,
+    name,
+    created_by,
+    image,
+    created_at,
+    updated_at
+FROM workspaces
+WHERE id = $1 and created_by=$2;

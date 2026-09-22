@@ -60,6 +60,46 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 	return i, err
 }
 
+const findUserWorkspacesById = `-- name: FindUserWorkspacesById :one
+SELECT
+    id,
+    name,
+    created_by,
+    image,
+    created_at,
+    updated_at
+FROM workspaces
+WHERE id = $1 and created_by=$2
+`
+
+type FindUserWorkspacesByIdParams struct {
+	ID        pgtype.UUID `json:"id"`
+	CreatedBy pgtype.UUID `json:"created_by"`
+}
+
+type FindUserWorkspacesByIdRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	Image     pgtype.Text        `json:"image"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) FindUserWorkspacesById(ctx context.Context, arg FindUserWorkspacesByIdParams) (FindUserWorkspacesByIdRow, error) {
+	row := q.db.QueryRow(ctx, findUserWorkspacesById, arg.ID, arg.CreatedBy)
+	var i FindUserWorkspacesByIdRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.Image,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const findWorkspacesByUserID = `-- name: FindWorkspacesByUserID :many
 SELECT
     id,
@@ -107,4 +147,34 @@ func (q *Queries) FindWorkspacesByUserID(ctx context.Context, createdBy pgtype.U
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateWorkspace = `-- name: UpdateWorkspace :one
+UPDATE workspaces
+SET
+    name = $2,
+    image = $3,
+    updated_at = NOW()
+WHERE id = $1 and created_by=$4
+RETURNING
+    id
+`
+
+type UpdateWorkspaceParams struct {
+	ID        pgtype.UUID `json:"id"`
+	Name      string      `json:"name"`
+	Image     pgtype.Text `json:"image"`
+	CreatedBy pgtype.UUID `json:"created_by"`
+}
+
+func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, updateWorkspace,
+		arg.ID,
+		arg.Name,
+		arg.Image,
+		arg.CreatedBy,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }

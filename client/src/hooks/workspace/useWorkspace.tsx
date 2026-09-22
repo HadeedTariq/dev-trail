@@ -1,11 +1,10 @@
 import { toast } from "@/hooks/use-toast";
 import { workspaceApi } from "@/lib/axios";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 export const useCreateWorkspace = () => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const mutation = useMutation({
     mutationKey: ["create-workspace"],
@@ -27,10 +26,7 @@ export const useCreateWorkspace = () => {
       });
 
       // Invalidate workspaces list so it refetches
-      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
-
-      // Optional: navigate to the new workspace or list page
-      // navigate("/workspaces");
+      queryClient.invalidateQueries({ queryKey: ["get-my-workspaces"] });
     },
 
     onError: (error: ErrResponse) => {
@@ -45,4 +41,22 @@ export const useCreateWorkspace = () => {
   });
 
   return mutation;
+};
+
+export const useGetMyWorkSpaces = () => {
+  const queryKey = `get-my-workspaces`;
+  let url = `/`;
+  const result = useQuery({
+    queryKey: [queryKey],
+    queryFn: async () => {
+      const { data } = await workspaceApi.get(url);
+      return data.data as MyWorkSpaces[];
+    },
+    refetchOnWindowFocus: false,
+    retry: 2,
+    refetchOnMount: true,
+    refetchInterval: 300000,
+  });
+
+  return result;
 };

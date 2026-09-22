@@ -38,6 +38,39 @@ func (r *workspaceRepository) Create(
 	return &workspace, nil
 }
 
-func (r *workspaceRepository) FindByUserID(ctx context.Context, userID pgtype.UUID) ([]sqlc.FindWorkspacesByUserIDRow, error) {
+func (r *workspaceRepository) FindByUserID(
+	ctx context.Context,
+	userID pgtype.UUID,
+) ([]sqlc.FindWorkspacesByUserIDRow, error) {
 	return r.queries.FindWorkspacesByUserID(ctx, userID)
+}
+
+func (r *workspaceRepository) FindByID(
+	ctx context.Context,
+	id pgtype.UUID,
+	userID pgtype.UUID,
+) (sqlc.FindUserWorkspacesByIdRow, error) {
+	return r.queries.FindUserWorkspacesById(ctx, sqlc.FindUserWorkspacesByIdParams{
+		ID:        id,
+		CreatedBy: userID,
+	})
+}
+
+func (r *workspaceRepository) Update(
+	ctx context.Context,
+	id pgtype.UUID,
+	name string,
+	image pgtype.Text,
+	createdBy pgtype.UUID,
+) (pgtype.UUID, error) {
+	workspaceID, err := r.queries.UpdateWorkspace(ctx, sqlc.UpdateWorkspaceParams{
+		ID:        id,
+		Name:      name,
+		Image:     image,
+		CreatedBy: createdBy,
+	})
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	return workspaceID, nil
 }

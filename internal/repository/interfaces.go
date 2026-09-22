@@ -29,4 +29,16 @@ type WorkspaceRepository interface {
 		image pgtype.Text,
 	) (*sqlc.CreateWorkspaceRow, error)
 	FindByUserID(ctx context.Context, userID pgtype.UUID) ([]sqlc.FindWorkspacesByUserIDRow, error)
+	Update(
+		ctx context.Context,
+		id pgtype.UUID,
+		name string,
+		image pgtype.Text,
+		createdBy pgtype.UUID,
+	) (pgtype.UUID, error)
+	FindByID(
+		ctx context.Context,
+		id pgtype.UUID,
+		userID pgtype.UUID,
+	) (sqlc.FindUserWorkspacesByIdRow, error)
 }

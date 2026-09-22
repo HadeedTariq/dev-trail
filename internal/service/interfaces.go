@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 
 	repo "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AuthTokens struct {
@@ -81,6 +82,18 @@ type WorkspaceService interface {
 		ctx context.Context,
 		userID string,
 	) (workspaces []repo.FindWorkspacesByUserIDRow, err error)
+	UpdateWorkspace(
+		ctx context.Context,
+		workspaceID string,
+		name string,
+		image string,
+		updatedBy string,
+	) (workspaceIDResult pgtype.UUID, err error)
+	GetWorkspaceByID(
+		ctx context.Context,
+		id string,
+		userID string,
+	) (workspace *repo.FindUserWorkspacesByIdRow, err error)
 }
 
 type ImageService interface {

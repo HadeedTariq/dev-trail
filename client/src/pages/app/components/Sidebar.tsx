@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useFullApp } from "@/store/hooks/useFullApp";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 /**
  * Sidebar items — each entry provides TWO icons:
@@ -130,6 +131,7 @@ function AppSidebar() {
               <X className="h-5 w-5" />
             </Button>
           </div>
+          <WorkspaceSwitcher />
 
           <ScrollArea className="flex-1 px-4 py-2">
             <div className="space-y-2">
@@ -184,6 +186,7 @@ function AppSidebar() {
               </h2>
             </Link>
           </div>
+          <WorkspaceSwitcher />
 
           <ScrollArea className="flex-1 px-4 py-2">
             <div className="space-y-2">

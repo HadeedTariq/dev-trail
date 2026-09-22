@@ -15,9 +15,11 @@ type Querier interface {
 	FindActiveOtp(ctx context.Context, email string) (EmailOtp, error)
 	FindUserByEmail(ctx context.Context, email pgtype.Text) (User, error)
 	FindUserByID(ctx context.Context, id pgtype.UUID) (User, error)
+	FindUserWorkspacesById(ctx context.Context, arg FindUserWorkspacesByIdParams) (FindUserWorkspacesByIdRow, error)
 	FindWorkspacesByUserID(ctx context.Context, createdBy pgtype.UUID) ([]FindWorkspacesByUserIDRow, error)
 	InsertEmailOtp(ctx context.Context, arg InsertEmailOtpParams) (EmailOtp, error)
 	InsertUser(ctx context.Context, arg InsertUserParams) (User, error)
+	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (pgtype.UUID, error)
 	VerifyUserAndUpdateRefreshToken(ctx context.Context, arg VerifyUserAndUpdateRefreshTokenParams) (pgtype.UUID, error)
 }
 

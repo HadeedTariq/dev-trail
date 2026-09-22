@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/HadeedTariq/dev-trail/internal/service"
 	"github.com/HadeedTariq/dev-trail/internal/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 )
 
 type WorkspaceHandler struct {
@@ -86,8 +89,128 @@ func (h *WorkspaceHandler) GetWorkspaces(c *gin.Context) {
 		return
 	}
 
+	utils.LogHandlerResponse(
+		logger,
+		http.StatusOK,
+		workspaces,
+	)
+
+	utils.RespondSuccess(
+		c,
+		http.StatusOK,
+		workspaces,
+	)
+}
+
+func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
+	logger := utils.LogHandlerStart(c, "WorkspaceHandler.UpdateWorkspace")
+
+	userId, _ := c.Get("user_id")
+
+	workspaceID := c.Param("id")
+	name := c.PostForm("name")
+
+	if workspaceID == "" {
+		utils.RespondBadRequest(c, "Workspace ID is required")
+		return
+	}
+
+	if name == "" {
+		utils.RespondBadRequest(c, "Workspace name is required")
+		return
+	}
+
+	imageURL := ""
+
+	file, err := c.FormFile("image")
+	if err == nil {
+		imageURL, err = h.imageService.Upload(
+			c.Request.Context(),
+			file,
+		)
+		if err != nil {
+			logger.WithError(err).Error("workspace image upload failed")
+			utils.RespondInternalError(
+				c,
+			)
+			return
+		}
+	}
+
+	_, err = h.workspaceService.UpdateWorkspace(
+		c.Request.Context(),
+		workspaceID,
+		name,
+		imageURL,
+		userId.(string),
+	)
+	if err != nil {
+		logger.WithError(err).Error("workspace update failed")
+		utils.RespondInternalError(
+			c,
+		)
+		return
+	}
+
+	response := utils.Response{
+		Message: fmt.Sprintf("Workspace: %s updated successfully", name),
+	}
+
+	utils.LogHandlerResponse(
+		logger,
+		http.StatusOK,
+		response,
+	)
+
+	utils.RespondSuccess(
+		c,
+		http.StatusOK,
+		response,
+	)
+}
+
+func (h *WorkspaceHandler) GetWorkspaceByID(c *gin.Context) {
+	logger := utils.LogHandlerStart(
+		c,
+		"WorkspaceHandler.GetWorkspaceByID",
+	)
+
+	userId, _ := c.Get("user_id")
+
+	workspaceID := c.Param("id")
+
+	if workspaceID == "" {
+		logger.Warn("workspace ID not provided")
+		utils.RespondBadRequest(c, "Workspace ID is required")
+		return
+	}
+
+	workspace, err := h.workspaceService.GetWorkspaceByID(
+		c.Request.Context(),
+		workspaceID,
+		userId.(string),
+	)
+	if err != nil {
+		logger.WithError(err).Error("failed to fetch workspace")
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			utils.RespondNotFound(c, "Workspace not found")
+			return
+		}
+
+		utils.RespondInternalError(
+			c,
+		)
+		return
+	}
+
 	response := gin.H{
-		"workspaces": workspaces,
+		"id":         workspace.ID,
+		"name":       workspace.Name,
+		"created_by": workspace.CreatedBy,
+		"image":      workspace.Image,
+		"created_at": workspace.CreatedAt,
+		"updated_at": workspace.UpdatedAt,
 	}
 
 	utils.LogHandlerResponse(
