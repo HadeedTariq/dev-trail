@@ -74,3 +74,17 @@ func (r *workspaceRepository) Update(
 	}
 	return workspaceID, nil
 }
+func (r *workspaceRepository) Delete(
+	ctx context.Context,
+	id pgtype.UUID,
+	createdBy pgtype.UUID,
+) (sqlc.DeleteWorkspaceRow, error) {
+	workspace, err := r.queries.DeleteWorkspace(ctx, sqlc.DeleteWorkspaceParams{
+		ID:        id,
+		CreatedBy: createdBy,
+	})
+	if err != nil {
+		return sqlc.DeleteWorkspaceRow{}, err
+	}
+	return workspace, nil
+}

@@ -83,23 +83,12 @@ func (h *WorkspaceHandler) GetWorkspaces(c *gin.Context) {
 	)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch user workspaces")
-		utils.RespondInternalError(
-			c,
-		)
+		utils.RespondInternalError(c)
 		return
 	}
 
-	utils.LogHandlerResponse(
-		logger,
-		http.StatusOK,
-		workspaces,
-	)
-
-	utils.RespondSuccess(
-		c,
-		http.StatusOK,
-		workspaces,
-	)
+	utils.LogHandlerResponse(logger, http.StatusOK, workspaces)
+	utils.RespondSuccess(c, http.StatusOK, workspaces)
 }
 
 func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
@@ -124,15 +113,10 @@ func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
 
 	file, err := c.FormFile("image")
 	if err == nil {
-		imageURL, err = h.imageService.Upload(
-			c.Request.Context(),
-			file,
-		)
+		imageURL, err = h.imageService.Upload(c.Request.Context(), file)
 		if err != nil {
 			logger.WithError(err).Error("workspace image upload failed")
-			utils.RespondInternalError(
-				c,
-			)
+			utils.RespondInternalError(c)
 			return
 		}
 	}
@@ -224,4 +208,46 @@ func (h *WorkspaceHandler) GetWorkspaceByID(c *gin.Context) {
 		http.StatusOK,
 		response,
 	)
+}
+
+func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
+	logger := utils.LogHandlerStart(c, "WorkspaceHandler.DeleteWorkspace")
+
+	workspaceID := c.Param("id")
+	if workspaceID == "" {
+		logger.Warn("workspace ID not provided")
+		utils.RespondBadRequest(c, "Workspace ID is required")
+		return
+	}
+
+	userId, _ := c.Get("user_id")
+
+	userID, ok := userId.(string)
+	if !ok || userID == "" {
+		logger.Error("invalid user ID in context")
+		utils.RespondUnauthorized(c, "Invalid authentication data")
+		return
+	}
+
+	workspace, err := h.workspaceService.DeleteWorkspace(
+		c.Request.Context(),
+		workspaceID,
+		userID,
+	)
+	if err != nil {
+		logger.WithError(err).Error("failed to delete workspace")
+		if errors.Is(err, pgx.ErrNoRows) {
+			utils.RespondNotFound(c, "Workspace not found")
+			return
+		}
+		utils.RespondInternalError(c)
+		return
+	}
+
+	response := gin.H{
+		"id": workspace.ID,
+	}
+
+	utils.LogHandlerResponse(logger, http.StatusOK, response)
+	utils.RespondSuccess(c, http.StatusOK, response)
 }

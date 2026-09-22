@@ -60,6 +60,40 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 	return i, err
 }
 
+const deleteWorkspace = `-- name: DeleteWorkspace :one
+DELETE FROM workspaces
+WHERE id = $1 AND created_by = $2
+RETURNING id, name, created_by, image, created_at, updated_at
+`
+
+type DeleteWorkspaceParams struct {
+	ID        pgtype.UUID `json:"id"`
+	CreatedBy pgtype.UUID `json:"created_by"`
+}
+
+type DeleteWorkspaceRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	Image     pgtype.Text        `json:"image"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) DeleteWorkspace(ctx context.Context, arg DeleteWorkspaceParams) (DeleteWorkspaceRow, error) {
+	row := q.db.QueryRow(ctx, deleteWorkspace, arg.ID, arg.CreatedBy)
+	var i DeleteWorkspaceRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.Image,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const findUserWorkspacesById = `-- name: FindUserWorkspacesById :one
 SELECT
     id,

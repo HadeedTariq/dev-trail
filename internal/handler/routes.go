@@ -9,5 +9,6 @@ func SetupWorkspaceRoutes(router *gin.RouterGroup, handler *WorkspaceHandler) {
 		workspace.POST("/create", handler.CreateWorkspace)
 		workspace.PUT("/update/:id", handler.UpdateWorkspace)
 		workspace.GET("/:id", handler.GetWorkspaceByID)
+		workspace.DELETE("/delete/:id", handler.DeleteWorkspace)
 	}
 }

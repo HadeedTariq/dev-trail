@@ -282,3 +282,71 @@ func (ws *workspaceService) GetWorkspaceByID(
 
 	return &result, nil
 }
+
+func (ws *workspaceService) DeleteWorkspace(
+	ctx context.Context,
+	id string,
+	userID string,
+) (workspace repo.DeleteWorkspaceRow, err error) {
+	start := time.Now()
+
+	tr := otel.Tracer("workspaceService")
+	ctx, span := tr.Start(ctx, "workspaceService.DeleteWorkspace")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("workspace.id", id),
+		attribute.String("workspace.user_id", userID),
+	)
+
+	defer func() {
+		metrics.WorkspaceOperationDuration.
+			WithLabelValues("delete").
+			Observe(time.Since(start).Seconds())
+
+		if err != nil {
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("delete", "error").
+				Inc()
+			span.RecordError(err)
+		} else {
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("delete", "success").
+				Inc()
+		}
+	}()
+
+	workspaceUUID, parseErr := uuid.Parse(id)
+	if parseErr != nil {
+		err = fmt.Errorf("invalid workspace ID: %w", parseErr)
+		return repo.DeleteWorkspaceRow{}, err
+	}
+
+	userUUID, parseErr := uuid.Parse(userID)
+	if parseErr != nil {
+		err = fmt.Errorf("invalid user ID: %w", parseErr)
+		return repo.DeleteWorkspaceRow{}, err
+	}
+
+	workspaceID := pgtype.UUID{
+		Bytes: workspaceUUID,
+		Valid: true,
+	}
+
+	createdBy := pgtype.UUID{
+		Bytes: userUUID,
+		Valid: true,
+	}
+
+	workspace, repoErr := ws.workspaceRepo.Delete(
+		ctx,
+		workspaceID,
+		createdBy,
+	)
+	if repoErr != nil {
+		err = fmt.Errorf("failed to delete workspace: %w", repoErr)
+		return repo.DeleteWorkspaceRow{}, err
+	}
+
+	return workspace, nil
+}

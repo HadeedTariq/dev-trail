@@ -41,4 +41,9 @@ type WorkspaceRepository interface {
 		id pgtype.UUID,
 		userID pgtype.UUID,
 	) (sqlc.FindUserWorkspacesByIdRow, error)
+	Delete(
+		ctx context.Context,
+		id pgtype.UUID,
+		createdBy pgtype.UUID,
+	) (sqlc.DeleteWorkspaceRow, error)
 }

@@ -51,3 +51,8 @@ SELECT
     updated_at
 FROM workspaces
 WHERE id = $1 and created_by=$2;
+
+-- name: DeleteWorkspace :one
+DELETE FROM workspaces
+WHERE id = $1 AND created_by = $2
+RETURNING id, name, created_by, image, created_at, updated_at;

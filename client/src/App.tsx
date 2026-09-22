@@ -52,8 +52,8 @@ function App() {
         >
           <Route index element={<R.HomePage />} />
           <Route path="create-workspace" element={<R.CreateWorkSpace />} />
-          <Route path="update-workspace/:id" element={<R.CreateWorkSpace />} />
-          <Route path="workspaces/:id" element={<R.CreateWorkSpace />} />
+          <Route path="update-workspace/:id" element={<R.UpdateWorkSpace />} />
+          <Route path="workspaces/:id" element={<R.GetWorkSpaceDetails />} />
         </Route>
 
         <Route path="/authenticate">
