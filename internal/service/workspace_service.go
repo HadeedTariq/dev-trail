@@ -8,6 +8,7 @@ import (
 	repo "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
 	"github.com/HadeedTariq/dev-trail/internal/metrics"
 	"github.com/HadeedTariq/dev-trail/internal/repository"
+	"github.com/HadeedTariq/dev-trail/internal/utils"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.opentelemetry.io/otel"
@@ -43,16 +44,23 @@ func (ws *workspaceService) CreateWorkspace(
 
 	defer func() {
 		duration := time.Since(start).Seconds()
-		metrics.WorkspaceOperationDuration.WithLabelValues("create").Observe(duration)
+		metrics.WorkspaceOperationDuration.
+			WithLabelValues("create").
+			Observe(duration)
 
 		if err != nil {
-			metrics.WorkspaceOperationsTotal.WithLabelValues("create", "error").Inc()
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("create", "error").
+				Inc()
 			span.RecordError(err)
 		} else {
-			metrics.WorkspaceOperationsTotal.WithLabelValues("create", "success").Inc()
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("create", "success").
+				Inc()
 		}
 	}()
 
+	// 1. Parse the creator's user ID
 	createdByUUID, parseErr := uuid.Parse(createdBy)
 	if parseErr != nil {
 		err = fmt.Errorf("invalid created by user ID: %w", parseErr)
@@ -69,18 +77,45 @@ func (ws *workspaceService) CreateWorkspace(
 		Valid:  image != "",
 	}
 
-	workspace, repoErr := ws.workspaceRepo.Create(
-		ctx,
-		name,
-		createdByPg,
-		imagePg,
-	)
-	if repoErr != nil {
-		err = fmt.Errorf("failed to create workspace: %w", repoErr)
+	// 2. Run both inserts inside a single transaction
+	var created *repo.CreateWorkspaceRow
+
+	txErr := utils.ExecTx(ctx, func(q *repo.Queries) error {
+		// 2a. Insert the workspace
+		wsRow, repoErr := ws.workspaceRepo.Create(
+			ctx,
+			q,
+			name,
+			createdByPg,
+			imagePg,
+		)
+		if repoErr != nil {
+			return fmt.Errorf("failed to create workspace: %w", repoErr)
+		}
+
+		// 2b. Insert the creator as the OWNER member
+		_, repoErr = ws.workspaceRepo.AddMember(
+			ctx,
+			q,
+			wsRow.ID,
+			createdByPg,
+			repo.WorkspaceRoleOWNER,
+			pgtype.UUID{}, // no inviter for the initial owner
+		)
+		if repoErr != nil {
+			return fmt.Errorf("failed to add owner as workspace member: %w", repoErr)
+		}
+
+		created = wsRow
+		return nil
+	})
+
+	if txErr != nil {
+		err = txErr
 		return nil, err
 	}
 
-	return workspace, nil
+	return created, nil
 }
 
 func (ws *workspaceService) GetUserWorkspaces(

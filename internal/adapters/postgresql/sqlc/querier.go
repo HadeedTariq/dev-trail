@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) (WorkspaceMember, error)
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (CreateWorkspaceRow, error)
 	DeleteWorkspace(ctx context.Context, arg DeleteWorkspaceParams) (DeleteWorkspaceRow, error)
 	FindActiveOtp(ctx context.Context, email string) (EmailOtp, error)

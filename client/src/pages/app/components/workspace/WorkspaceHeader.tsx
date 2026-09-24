@@ -23,7 +23,7 @@ interface WorkspaceHeaderProps {
 
 export function WorkspaceHeader({
   workspace,
-  canEdit = false,
+  canEdit = true,
 }: WorkspaceHeaderProps) {
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);

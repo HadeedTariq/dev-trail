@@ -11,6 +11,54 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addWorkspaceMember = `-- name: AddWorkspaceMember :one
+INSERT INTO workspace_members (
+    workspace_id,
+    user_id,
+    role,
+    invited_by
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING
+    id,
+    workspace_id,
+    user_id,
+    role,
+    invited_by,
+    joined_at,
+    created_at,
+    updated_at
+`
+
+type AddWorkspaceMemberParams struct {
+	WorkspaceID pgtype.UUID   `json:"workspace_id"`
+	UserID      pgtype.UUID   `json:"user_id"`
+	Role        WorkspaceRole `json:"role"`
+	InvitedBy   pgtype.UUID   `json:"invited_by"`
+}
+
+func (q *Queries) AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) (WorkspaceMember, error) {
+	row := q.db.QueryRow(ctx, addWorkspaceMember,
+		arg.WorkspaceID,
+		arg.UserID,
+		arg.Role,
+		arg.InvitedBy,
+	)
+	var i WorkspaceMember
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.Role,
+		&i.InvitedBy,
+		&i.JoinedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (
     name,

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/HadeedTariq/dev-trail/internal/adapters/postgresql"
+	repo "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
 	sqlc "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
 	"github.com/HadeedTariq/dev-trail/internal/config"
 	"github.com/HadeedTariq/dev-trail/internal/handler"
@@ -63,6 +64,10 @@ func main() {
 
 	defer dbPool.Close() // Ensure connection pool drains on shutdown
 
+	queries := repo.New(dbPool)
+
+	// One-time global wiring for utils.ExecTx
+	utils.InitTx(dbPool, queries)
 	// 3. Setup Router with DB Pool dependency
 	router := setupRouter(cfg, dbPool)
 
@@ -95,14 +100,15 @@ func main() {
 }
 
 func setupRouter(cfg *config.Config, dbPool *pgxpool.Pool) *gin.Engine {
-	// _, err := dbPool.Exec(
+	// data, err := dbPool.Exec(
 	// 	context.Background(),
-	// 	"select * from workspaces",
+	// 	"select * from workspace_members",
 	// )
 
 	// if err != nil {
 	// 	log.Fatal("User cleanup failed")
 	// } else {
+	// 	log.Print(data)
 	// 	log.Print("User cleanup succeeded")
 	// }
 	if cfg.Server.Mode == "production" {

@@ -41,7 +41,7 @@ export function WorkspaceSwitcher() {
   }
 
   // Error state
-  if (isError || !workspaces) {
+  if (isError) {
     return (
       <Button
         variant="outline"
@@ -89,30 +89,36 @@ export function WorkspaceSwitcher() {
           <CommandList>
             <CommandEmpty>No workspace found.</CommandEmpty>
             <CommandGroup heading="Workspaces">
-              {workspaces.map((workspace) => (
-                <CommandItem
-                  key={workspace.id}
-                  value={workspace.name}
-                  onSelect={() => {
-                    setOpen(false);
-                    navigate(`/workspaces/${workspace.id}`);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <WorkspaceAvatar
-                    name={workspace.name}
-                    image={workspace.image}
-                    size="sm"
-                  />
-                  <span className="flex-1 truncate">{workspace.name}</span>
-                  <Check
-                    className={cn(
-                      "h-4 w-4",
-                      workspaceId === workspace.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                </CommandItem>
-              ))}
+              {workspaces && workspaces.length > 0 ? (
+                workspaces?.map((workspace) => (
+                  <CommandItem
+                    key={workspace.id}
+                    value={workspace.name}
+                    onSelect={() => {
+                      setOpen(false);
+                      navigate(`/workspaces/${workspace.id}`);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <WorkspaceAvatar
+                      name={workspace.name}
+                      image={workspace.image}
+                      size="sm"
+                    />
+                    <span className="flex-1 truncate">{workspace.name}</span>
+                    <Check
+                      className={cn(
+                        "h-4 w-4",
+                        workspaceId === workspace.id
+                          ? "opacity-100"
+                          : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ))
+              ) : (
+                <p className="text-center text-sm">No Workspaces</p>
+              )}
             </CommandGroup>
 
             <CommandSeparator />

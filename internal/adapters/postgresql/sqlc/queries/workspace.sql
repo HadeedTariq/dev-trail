@@ -56,3 +56,22 @@ WHERE id = $1 and created_by=$2;
 DELETE FROM workspaces
 WHERE id = $1 AND created_by = $2
 RETURNING id, name, created_by, image, created_at, updated_at;
+
+-- name: AddWorkspaceMember :one
+INSERT INTO workspace_members (
+    workspace_id,
+    user_id,
+    role,
+    invited_by
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING
+    id,
+    workspace_id,
+    user_id,
+    role,
+    invited_by,
+    joined_at,
+    created_at,
+    updated_at;

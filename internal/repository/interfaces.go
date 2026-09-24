@@ -24,6 +24,7 @@ type UserRepository interface {
 type WorkspaceRepository interface {
 	Create(
 		ctx context.Context,
+		q *sqlc.Queries,
 		name string,
 		createdBy pgtype.UUID,
 		image pgtype.Text,
@@ -46,4 +47,12 @@ type WorkspaceRepository interface {
 		id pgtype.UUID,
 		createdBy pgtype.UUID,
 	) (sqlc.DeleteWorkspaceRow, error)
+	AddMember(
+		ctx context.Context,
+		q *sqlc.Queries,
+		workspaceID pgtype.UUID,
+		userID pgtype.UUID,
+		role sqlc.WorkspaceRole,
+		invitedBy pgtype.UUID,
+	) (*sqlc.WorkspaceMember, error)
 }

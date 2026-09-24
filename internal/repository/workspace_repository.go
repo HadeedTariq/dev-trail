@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	sqlc "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -22,6 +23,7 @@ func NewWorkspaceRepository(pool *pgxpool.Pool, queries *sqlc.Queries) Workspace
 
 func (r *workspaceRepository) Create(
 	ctx context.Context,
+	q *sqlc.Queries,
 	name string,
 	createdBy pgtype.UUID,
 	image pgtype.Text,
@@ -36,6 +38,31 @@ func (r *workspaceRepository) Create(
 	}
 
 	return &workspace, nil
+}
+
+func (r *workspaceRepository) AddMember(
+	ctx context.Context,
+	q *sqlc.Queries,
+	workspaceID pgtype.UUID,
+	userID pgtype.UUID,
+	role sqlc.WorkspaceRole,
+	invitedBy pgtype.UUID,
+) (*sqlc.WorkspaceMember, error) {
+	if q == nil {
+		q = r.queries
+	}
+
+	member, err := q.AddWorkspaceMember(ctx, sqlc.AddWorkspaceMemberParams{
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+		Role:        role,
+		InvitedBy:   invitedBy,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("add workspace member: %w", err)
+	}
+
+	return &member, nil
 }
 
 func (r *workspaceRepository) FindByUserID(
@@ -87,4 +114,34 @@ func (r *workspaceRepository) Delete(
 		return sqlc.DeleteWorkspaceRow{}, err
 	}
 	return workspace, nil
+}
+
+func (r *workspaceRepository) ExecTx(ctx context.Context, fn func(q *sqlc.Queries) error) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+
+	// ALWAYS defer a rollback.
+	// If the transaction is committed successfully later, this deferred call
+	// becomes a harmless no-op. If it panics or fails, this guarantees cleanup.
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	// Bind sqlc queries to this active transaction
+	qtx := r.queries.WithTx(tx)
+
+	// Execute business function
+	if err := fn(qtx); err != nil {
+		// Deferred tx.Rollback() will catch this and release the pool connection
+		return err
+	}
+
+	// Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit tx: %w", err)
+	}
+
+	return nil
 }

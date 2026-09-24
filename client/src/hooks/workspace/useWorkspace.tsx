@@ -128,7 +128,7 @@ export const useDeleteWorkspace = (workspaceId: string) => {
     mutationKey: ["delete-workspace", workspaceId],
 
     mutationFn: async () => {
-      const { data } = await workspaceApi.delete(`/${workspaceId}`);
+      const { data } = await workspaceApi.delete(`/delete/${workspaceId}`);
       return data;
     },
 

@@ -141,6 +141,50 @@ func (ns NullUserGender) Value() (driver.Value, error) {
 	return string(ns.UserGender), nil
 }
 
+type WorkspaceRole string
+
+const (
+	WorkspaceRoleOWNER  WorkspaceRole = "OWNER"
+	WorkspaceRoleADMIN  WorkspaceRole = "ADMIN"
+	WorkspaceRoleMEMBER WorkspaceRole = "MEMBER"
+	WorkspaceRoleVIEWER WorkspaceRole = "VIEWER"
+)
+
+func (e *WorkspaceRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = WorkspaceRole(s)
+	case string:
+		*e = WorkspaceRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for WorkspaceRole: %T", src)
+	}
+	return nil
+}
+
+type NullWorkspaceRole struct {
+	WorkspaceRole WorkspaceRole `json:"workspace_role"`
+	Valid         bool          `json:"valid"` // Valid is true if WorkspaceRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullWorkspaceRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.WorkspaceRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.WorkspaceRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullWorkspaceRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.WorkspaceRole), nil
+}
+
 type EmailOtp struct {
 	ID        pgtype.UUID        `json:"id"`
 	Email     string             `json:"email"`
@@ -181,4 +225,15 @@ type Workspace struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 	Image     pgtype.Text        `json:"image"`
+}
+
+type WorkspaceMember struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Role        WorkspaceRole      `json:"role"`
+	InvitedBy   pgtype.UUID        `json:"invited_by"`
+	JoinedAt    pgtype.Timestamptz `json:"joined_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
