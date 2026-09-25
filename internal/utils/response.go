@@ -10,6 +10,7 @@ import (
 // APIResponse represents a unified response structure
 type Response struct {
 	Message string `json:"message"`
+	Data    interface{}
 }
 type APIResponse struct {
 	Success bool        `json:"success"`

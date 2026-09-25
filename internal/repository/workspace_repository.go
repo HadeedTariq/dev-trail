@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	sqlc "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -116,32 +117,79 @@ func (r *workspaceRepository) Delete(
 	return workspace, nil
 }
 
-func (r *workspaceRepository) ExecTx(ctx context.Context, fn func(q *sqlc.Queries) error) error {
-	tx, err := r.pool.Begin(ctx)
+func (r *workspaceRepository) CreateWorkspaceInvitation(
+	ctx context.Context,
+	q *sqlc.Queries,
+	workspaceID pgtype.UUID,
+	email string,
+	invitedBy pgtype.UUID,
+	role sqlc.WorkspaceRole,
+	token string,
+	expiresAt time.Time,
+) (*sqlc.WorkspaceInvitation, error) {
+	if q == nil {
+		q = r.queries
+	}
+
+	inv, err := q.CreateWorkspaceInvitation(ctx, sqlc.CreateWorkspaceInvitationParams{
+		WorkspaceID: workspaceID,
+		Email:       email,
+		InvitedBy:   invitedBy,
+		Role:        role,
+		Token:       token,
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  expiresAt,
+			Valid: true,
+		},
+	})
 	if err != nil {
-		return fmt.Errorf("failed to begin tx: %w", err)
+		return nil, fmt.Errorf("create workspace invitation: %w", err)
+	}
+	return &inv, nil
+}
+
+func (r *workspaceRepository) FindPendingByWorkspaceAndEmail(
+	ctx context.Context,
+	q *sqlc.Queries,
+	workspaceID pgtype.UUID,
+	email string,
+) (*sqlc.WorkspaceInvitation, error) {
+	if q == nil {
+		q = r.queries
 	}
 
-	// ALWAYS defer a rollback.
-	// If the transaction is committed successfully later, this deferred call
-	// becomes a harmless no-op. If it panics or fails, this guarantees cleanup.
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
+	inv, err := q.FindPendingInvitationByWorkspaceAndEmail(
+		ctx,
+		sqlc.FindPendingInvitationByWorkspaceAndEmailParams{
+			WorkspaceID: workspaceID,
+			Lower:       email,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find pending invitation: %w", err)
+	}
+	return &inv, nil
+}
 
-	// Bind sqlc queries to this active transaction
-	qtx := r.queries.WithTx(tx)
-
-	// Execute business function
-	if err := fn(qtx); err != nil {
-		// Deferred tx.Rollback() will catch this and release the pool connection
-		return err
+func (r *workspaceRepository) FindMemberByWorkspaceAndEmail(
+	ctx context.Context,
+	q *sqlc.Queries,
+	workspaceID pgtype.UUID,
+	email string,
+) (*sqlc.WorkspaceMember, error) {
+	if q == nil {
+		q = r.queries
 	}
 
-	// Commit transaction
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit tx: %w", err)
+	m, err := q.FindMemberByWorkspaceAndEmail(
+		ctx,
+		sqlc.FindMemberByWorkspaceAndEmailParams{
+			WorkspaceID: workspaceID,
+			Lower:       email,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find member by email: %w", err)
 	}
-
-	return nil
+	return &m, nil
 }

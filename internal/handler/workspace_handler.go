@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"net/http"
 
+	apperrors "github.com/HadeedTariq/dev-trail/internal/errors"
+
 	"github.com/HadeedTariq/dev-trail/internal/service"
 	"github.com/HadeedTariq/dev-trail/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
+
+type inviteMemberRequest struct {
+	Email string `json:"email" binding:"required,email"`
+	Role  string `json:"role"  binding:"required,oneof=ADMIN MEMBER VIEWER"`
+}
 
 type WorkspaceHandler struct {
 	workspaceService service.WorkspaceService
@@ -250,4 +257,70 @@ func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
 
 	utils.LogHandlerResponse(logger, http.StatusOK, response)
 	utils.RespondSuccess(c, http.StatusOK, response)
+}
+
+func (h *WorkspaceHandler) InviteMember(c *gin.Context) {
+	logger := utils.LogHandlerStart(c, "WorkspaceHandler.InviteMember")
+
+	// 1. Caller identity (from CheckAuth middleware)
+	userId, _ := c.Get("user_id")
+
+	// 2. Workspace ID from the URL: /workspaces/:workspaceId/members/invite
+	workspaceID := c.Param("workspaceId")
+	if workspaceID == "" {
+		utils.RespondBadRequest(c, "Workspace ID is required")
+		return
+	}
+
+	// 3. Bind JSON body
+	var req inviteMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.WithError(err).Warn("invalid invite request body")
+		utils.RespondBadRequest(c, err.Error())
+		return
+	}
+
+	// 4. Call service
+	result, err := h.workspaceService.InviteMember(
+		c.Request.Context(),
+		workspaceID,
+		userId.(string),
+		req.Email,
+		req.Role,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrAlreadyMember):
+			logger.WithError(err).Warn("user already a member")
+			utils.RespondConflict(c, "This user is already a member of the workspace")
+			return
+
+		case errors.Is(err, apperrors.ErrInvitationAlreadyPending):
+			logger.WithError(err).Warn("invitation already pending")
+			utils.RespondConflict(c, "An invitation is already pending for this email")
+			return
+
+		default:
+			logger.WithError(err).Error("invite member failed")
+			utils.RespondInternalError(c)
+			return
+		}
+	}
+
+	// 5. Shape the response based on which path was taken
+	message := "Invitation sent successfully"
+	if result.AddedDirectly {
+		message = "Member added successfully"
+	}
+
+	response := utils.Response{
+		Message: message,
+		Data: gin.H{
+			"added_directly": result.AddedDirectly,
+			"invitation_id":  result.InvitationID,
+		},
+	}
+
+	utils.LogHandlerResponse(logger, http.StatusCreated, response)
+	utils.RespondSuccess(c, http.StatusCreated, response)
 }

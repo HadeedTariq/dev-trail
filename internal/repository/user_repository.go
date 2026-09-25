@@ -22,7 +22,10 @@ func NewUserRepository(pool *pgxpool.Pool, queries *sqlc.Queries) UserRepository
 	}
 }
 
-func (r *userRepository) GetByEmail(ctx context.Context, email pgtype.Text) (*sqlc.User, error) {
+func (r *userRepository) GetByEmail(ctx context.Context, q *sqlc.Queries, email pgtype.Text) (*sqlc.User, error) {
+	if q == nil {
+		q = r.queries
+	}
 	user, err := r.queries.FindUserByEmail(ctx, email)
 	if err != nil {
 		return nil, err

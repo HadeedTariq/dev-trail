@@ -13,15 +13,17 @@ import (
 // Handlers check them with errors.Is() instead of string comparison.
 var (
 	// Business logic sentinel errors
-	ErrDuplicateEmail  = errors.New("duplicate email")
-	ErrOtpAlreadySend  = errors.New("Otp already send")
-	ErrNotFound        = errors.New("not found")
-	ErrOtpExpired      = errors.New("otp expired or not found")
-	ErrInvalidOtp      = errors.New("invalid otp")
-	ErrUserNotFound    = errors.New("user not found")
-	ErrUserUnverified  = errors.New("user unverified")
-	ErrInvalidPassword = errors.New("invalid password")
-	ErrTokenRevoked    = errors.New("invalid token")
+	ErrDuplicateEmail           = errors.New("duplicate email")
+	ErrOtpAlreadySend           = errors.New("Otp already send")
+	ErrNotFound                 = errors.New("not found")
+	ErrOtpExpired               = errors.New("otp expired or not found")
+	ErrInvalidOtp               = errors.New("invalid otp")
+	ErrUserNotFound             = errors.New("user not found")
+	ErrUserUnverified           = errors.New("user unverified")
+	ErrInvalidPassword          = errors.New("invalid password")
+	ErrTokenRevoked             = errors.New("invalid token")
+	ErrAlreadyMember            = errors.New("user is already a member of this workspace")
+	ErrInvitationAlreadyPending = errors.New("an invitation is already pending for this email")
 )
 
 // Error codes

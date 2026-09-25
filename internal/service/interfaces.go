@@ -95,6 +95,13 @@ type WorkspaceService interface {
 		userID string,
 	) (workspace *repo.FindUserWorkspacesByIdRow, err error)
 	DeleteWorkspace(ctx context.Context, id string, userID string) (repo.DeleteWorkspaceRow, error)
+	InviteMember(
+		ctx context.Context,
+		workspaceID string,
+		invitedBy string,
+		email string,
+		role string,
+	) (result *InviteMemberResult, err error)
 }
 
 type ImageService interface {

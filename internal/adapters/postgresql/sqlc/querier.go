@@ -11,10 +11,20 @@ import (
 )
 
 type Querier interface {
+	AcceptInvitation(ctx context.Context, id pgtype.UUID) (WorkspaceInvitation, error)
 	AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) (WorkspaceMember, error)
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (CreateWorkspaceRow, error)
+	CreateWorkspaceInvitation(ctx context.Context, arg CreateWorkspaceInvitationParams) (WorkspaceInvitation, error)
+	DeleteExpiredInvitations(ctx context.Context) error
+	DeleteInvitation(ctx context.Context, id pgtype.UUID) error
 	DeleteWorkspace(ctx context.Context, arg DeleteWorkspaceParams) (DeleteWorkspaceRow, error)
 	FindActiveOtp(ctx context.Context, email string) (EmailOtp, error)
+	FindInvitationByToken(ctx context.Context, token string) (WorkspaceInvitation, error)
+	// ~ workspace invitation related queries
+	FindMemberByWorkspaceAndEmail(ctx context.Context, arg FindMemberByWorkspaceAndEmailParams) (WorkspaceMember, error)
+	FindPendingInvitationByWorkspaceAndEmail(ctx context.Context, arg FindPendingInvitationByWorkspaceAndEmailParams) (WorkspaceInvitation, error)
+	FindPendingInvitationsByEmail(ctx context.Context, email string) ([]WorkspaceInvitation, error)
+	FindPendingInvitationsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) ([]WorkspaceInvitation, error)
 	FindUserByEmail(ctx context.Context, email pgtype.Text) (User, error)
 	FindUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	FindUserWorkspacesById(ctx context.Context, arg FindUserWorkspacesByIdParams) (FindUserWorkspacesByIdRow, error)

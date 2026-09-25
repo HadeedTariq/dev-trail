@@ -227,6 +227,19 @@ type Workspace struct {
 	Image     pgtype.Text        `json:"image"`
 }
 
+type WorkspaceInvitation struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	Email       string             `json:"email"`
+	InvitedBy   pgtype.UUID        `json:"invited_by"`
+	Role        WorkspaceRole      `json:"role"`
+	Token       string             `json:"token"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	AcceptedAt  pgtype.Timestamptz `json:"accepted_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type WorkspaceMember struct {
 	ID          pgtype.UUID        `json:"id"`
 	WorkspaceID pgtype.UUID        `json:"workspace_id"`

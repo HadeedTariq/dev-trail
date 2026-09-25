@@ -159,7 +159,7 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 
 	userService := service.NewUserService(userRepo, appMailer)
 	tokenService := service.NewTokenService(cfg.JWT, userRepo)
-	workspaceService := service.NewWorkspaceService(workspaceRepo)
+	workspaceService := service.NewWorkspaceService(workspaceRepo, userRepo)
 	cloudinaryClient, err := utils.NewCloudinary(cfg.Cloudinary)
 	if err != nil {
 		log.Fatalf("Failed to initialize Cloudinary: %v", err)

@@ -9,7 +9,7 @@ import (
 )
 
 type UserRepository interface {
-	GetByEmail(ctx context.Context, email pgtype.Text) (*sqlc.User, error)
+	GetByEmail(ctx context.Context, q *sqlc.Queries, email pgtype.Text) (*sqlc.User, error)
 	GetActiveOtp(ctx context.Context, email pgtype.Text) (*sqlc.EmailOtp, error)
 	ExecTx(ctx context.Context, fn func(q *sqlc.Queries) error) error
 	CreateUserWithOTP(ctx context.Context, user *sqlc.User, otp string, expiresAt time.Time) error
@@ -54,5 +54,27 @@ type WorkspaceRepository interface {
 		userID pgtype.UUID,
 		role sqlc.WorkspaceRole,
 		invitedBy pgtype.UUID,
+	) (*sqlc.WorkspaceMember, error)
+	FindPendingByWorkspaceAndEmail(
+		ctx context.Context,
+		q *sqlc.Queries,
+		workspaceID pgtype.UUID,
+		email string,
+	) (*sqlc.WorkspaceInvitation, error)
+	CreateWorkspaceInvitation(
+		ctx context.Context,
+		q *sqlc.Queries,
+		workspaceID pgtype.UUID,
+		email string,
+		invitedBy pgtype.UUID,
+		role sqlc.WorkspaceRole,
+		token string,
+		expiresAt time.Time,
+	) (*sqlc.WorkspaceInvitation, error)
+	FindMemberByWorkspaceAndEmail(
+		ctx context.Context,
+		q *sqlc.Queries,
+		workspaceID pgtype.UUID,
+		email string,
 	) (*sqlc.WorkspaceMember, error)
 }

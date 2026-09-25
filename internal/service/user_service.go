@@ -70,7 +70,7 @@ func (s *userService) Register(
 	}
 
 	// Check if user already exists
-	existing, _ := s.userRepo.GetByEmail(ctx, emailPg)
+	existing, _ := s.userRepo.GetByEmail(ctx, nil, emailPg)
 	if existing != nil {
 		err = fmt.Errorf("user with this email already exists: %w", apperrors.ErrDuplicateEmail)
 		return nil, err
@@ -165,7 +165,7 @@ func (s *userService) OtpValidator(
 		return nil, err
 	}
 
-	user, err := s.userRepo.GetByEmail(ctx, emailPg)
+	user, err := s.userRepo.GetByEmail(ctx, nil, emailPg)
 	if err != nil {
 		err = fmt.Errorf("failed to find user by email: %w", err)
 		return nil, err
@@ -208,7 +208,7 @@ func (s *userService) Authenticate(
 	emailPg := pgtype.Text{String: email, Valid: email != ""}
 
 	// 2. Fetch user from database
-	user, fetchErr := s.userRepo.GetByEmail(ctx, emailPg)
+	user, fetchErr := s.userRepo.GetByEmail(ctx, nil, emailPg)
 	if fetchErr != nil {
 		if errors.Is(fetchErr, pgx.ErrNoRows) || errors.Is(fetchErr, apperrors.ErrUserNotFound) {
 			err = fmt.Errorf("invalid credentials: %w", apperrors.ErrUserNotFound)

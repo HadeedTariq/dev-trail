@@ -11,6 +11,34 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acceptInvitation = `-- name: AcceptInvitation :one
+UPDATE workspace_invitations
+SET
+    accepted_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+  AND accepted_at IS NULL
+RETURNING id, workspace_id, email, invited_by, role, token, expires_at, accepted_at, created_at, updated_at
+`
+
+func (q *Queries) AcceptInvitation(ctx context.Context, id pgtype.UUID) (WorkspaceInvitation, error) {
+	row := q.db.QueryRow(ctx, acceptInvitation, id)
+	var i WorkspaceInvitation
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.InvitedBy,
+		&i.Role,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.AcceptedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const addWorkspaceMember = `-- name: AddWorkspaceMember :one
 INSERT INTO workspace_members (
     workspace_id,
@@ -108,6 +136,75 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 	return i, err
 }
 
+const createWorkspaceInvitation = `-- name: CreateWorkspaceInvitation :one
+INSERT INTO workspace_invitations (
+    workspace_id,
+    email,
+    invited_by,
+    role,
+    token,
+    expires_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+RETURNING id, workspace_id, email, invited_by, role, token, expires_at, accepted_at, created_at, updated_at
+`
+
+type CreateWorkspaceInvitationParams struct {
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	Email       string             `json:"email"`
+	InvitedBy   pgtype.UUID        `json:"invited_by"`
+	Role        WorkspaceRole      `json:"role"`
+	Token       string             `json:"token"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+}
+
+func (q *Queries) CreateWorkspaceInvitation(ctx context.Context, arg CreateWorkspaceInvitationParams) (WorkspaceInvitation, error) {
+	row := q.db.QueryRow(ctx, createWorkspaceInvitation,
+		arg.WorkspaceID,
+		arg.Email,
+		arg.InvitedBy,
+		arg.Role,
+		arg.Token,
+		arg.ExpiresAt,
+	)
+	var i WorkspaceInvitation
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.InvitedBy,
+		&i.Role,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.AcceptedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteExpiredInvitations = `-- name: DeleteExpiredInvitations :exec
+DELETE FROM workspace_invitations
+WHERE expires_at < NOW()
+  AND accepted_at IS NULL
+`
+
+func (q *Queries) DeleteExpiredInvitations(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredInvitations)
+	return err
+}
+
+const deleteInvitation = `-- name: DeleteInvitation :exec
+DELETE FROM workspace_invitations
+WHERE id = $1
+`
+
+func (q *Queries) DeleteInvitation(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteInvitation, id)
+	return err
+}
+
 const deleteWorkspace = `-- name: DeleteWorkspace :one
 DELETE FROM workspaces
 WHERE id = $1 AND created_by = $2
@@ -140,6 +237,176 @@ func (q *Queries) DeleteWorkspace(ctx context.Context, arg DeleteWorkspaceParams
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const findInvitationByToken = `-- name: FindInvitationByToken :one
+SELECT id, workspace_id, email, invited_by, role, token, expires_at, accepted_at, created_at, updated_at
+FROM workspace_invitations
+WHERE token = $1
+  AND accepted_at IS NULL
+  AND expires_at > NOW()
+LIMIT 1
+`
+
+func (q *Queries) FindInvitationByToken(ctx context.Context, token string) (WorkspaceInvitation, error) {
+	row := q.db.QueryRow(ctx, findInvitationByToken, token)
+	var i WorkspaceInvitation
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.InvitedBy,
+		&i.Role,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.AcceptedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findMemberByWorkspaceAndEmail = `-- name: FindMemberByWorkspaceAndEmail :one
+SELECT wm.id, wm.workspace_id, wm.user_id, wm.role, wm.invited_by, wm.joined_at, wm.created_at, wm.updated_at
+FROM workspace_members wm
+JOIN users u ON u.id = wm.user_id
+WHERE wm.workspace_id = $1
+  AND LOWER(u.email) = LOWER($2)
+LIMIT 1
+`
+
+type FindMemberByWorkspaceAndEmailParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	Lower       string      `json:"lower"`
+}
+
+// ~ workspace invitation related queries
+func (q *Queries) FindMemberByWorkspaceAndEmail(ctx context.Context, arg FindMemberByWorkspaceAndEmailParams) (WorkspaceMember, error) {
+	row := q.db.QueryRow(ctx, findMemberByWorkspaceAndEmail, arg.WorkspaceID, arg.Lower)
+	var i WorkspaceMember
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.Role,
+		&i.InvitedBy,
+		&i.JoinedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findPendingInvitationByWorkspaceAndEmail = `-- name: FindPendingInvitationByWorkspaceAndEmail :one
+SELECT id, workspace_id, email, invited_by, role, token, expires_at, accepted_at, created_at, updated_at
+FROM workspace_invitations
+WHERE workspace_id = $1
+  AND LOWER(email) = LOWER($2)
+  AND accepted_at IS NULL
+LIMIT 1
+`
+
+type FindPendingInvitationByWorkspaceAndEmailParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	Lower       string      `json:"lower"`
+}
+
+func (q *Queries) FindPendingInvitationByWorkspaceAndEmail(ctx context.Context, arg FindPendingInvitationByWorkspaceAndEmailParams) (WorkspaceInvitation, error) {
+	row := q.db.QueryRow(ctx, findPendingInvitationByWorkspaceAndEmail, arg.WorkspaceID, arg.Lower)
+	var i WorkspaceInvitation
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.InvitedBy,
+		&i.Role,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.AcceptedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findPendingInvitationsByEmail = `-- name: FindPendingInvitationsByEmail :many
+SELECT id, workspace_id, email, invited_by, role, token, expires_at, accepted_at, created_at, updated_at
+FROM workspace_invitations
+WHERE email = $1
+  AND accepted_at IS NULL
+  AND expires_at > NOW()
+ORDER BY created_at DESC
+`
+
+func (q *Queries) FindPendingInvitationsByEmail(ctx context.Context, email string) ([]WorkspaceInvitation, error) {
+	rows, err := q.db.Query(ctx, findPendingInvitationsByEmail, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkspaceInvitation
+	for rows.Next() {
+		var i WorkspaceInvitation
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Email,
+			&i.InvitedBy,
+			&i.Role,
+			&i.Token,
+			&i.ExpiresAt,
+			&i.AcceptedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findPendingInvitationsByWorkspace = `-- name: FindPendingInvitationsByWorkspace :many
+SELECT id, workspace_id, email, invited_by, role, token, expires_at, accepted_at, created_at, updated_at
+FROM workspace_invitations
+WHERE workspace_id = $1
+  AND accepted_at IS NULL
+  AND expires_at > NOW()
+ORDER BY created_at DESC
+`
+
+func (q *Queries) FindPendingInvitationsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) ([]WorkspaceInvitation, error) {
+	rows, err := q.db.Query(ctx, findPendingInvitationsByWorkspace, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkspaceInvitation
+	for rows.Next() {
+		var i WorkspaceInvitation
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Email,
+			&i.InvitedBy,
+			&i.Role,
+			&i.Token,
+			&i.ExpiresAt,
+			&i.AcceptedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const findUserWorkspacesById = `-- name: FindUserWorkspacesById :one
