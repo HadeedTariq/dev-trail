@@ -193,3 +193,23 @@ func (r *workspaceRepository) FindMemberByWorkspaceAndEmail(
 	}
 	return &m, nil
 }
+
+func (r *workspaceRepository) GetMemberRole(
+	ctx context.Context,
+	q *sqlc.Queries,
+	workspaceID pgtype.UUID,
+	userID pgtype.UUID,
+) (sqlc.WorkspaceRole, error) {
+	if q == nil {
+		q = r.queries
+	}
+
+	role, err := q.GetWorkspaceMemberRole(ctx, sqlc.GetWorkspaceMemberRoleParams{
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("get workspace member role: %w", err)
+	}
+	return role, nil
+}

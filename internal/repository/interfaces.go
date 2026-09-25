@@ -77,4 +77,10 @@ type WorkspaceRepository interface {
 		workspaceID pgtype.UUID,
 		email string,
 	) (*sqlc.WorkspaceMember, error)
+	GetMemberRole(
+		ctx context.Context,
+		q *sqlc.Queries,
+		workspaceID pgtype.UUID,
+		userID pgtype.UUID,
+	) (sqlc.WorkspaceRole, error)
 }

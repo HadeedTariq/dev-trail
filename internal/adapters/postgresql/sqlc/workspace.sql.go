@@ -498,6 +498,25 @@ func (q *Queries) FindWorkspacesByUserID(ctx context.Context, createdBy pgtype.U
 	return items, nil
 }
 
+const getWorkspaceMemberRole = `-- name: GetWorkspaceMemberRole :one
+SELECT role 
+FROM workspace_members
+WHERE workspace_id = $1 
+  AND user_id = $2
+`
+
+type GetWorkspaceMemberRoleParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	UserID      pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceMemberRole, arg.WorkspaceID, arg.UserID)
+	var role WorkspaceRole
+	err := row.Scan(&role)
+	return role, err
+}
+
 const updateWorkspace = `-- name: UpdateWorkspace :one
 UPDATE workspaces
 SET

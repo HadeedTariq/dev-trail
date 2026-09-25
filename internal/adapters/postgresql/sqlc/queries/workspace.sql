@@ -148,3 +148,9 @@ WHERE id = $1;
 DELETE FROM workspace_invitations
 WHERE expires_at < NOW()
   AND accepted_at IS NULL;
+
+-- name: GetWorkspaceMemberRole :one
+SELECT role 
+FROM workspace_members
+WHERE workspace_id = $1 
+  AND user_id = $2;
