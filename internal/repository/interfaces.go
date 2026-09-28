@@ -83,4 +83,8 @@ type WorkspaceRepository interface {
 		workspaceID pgtype.UUID,
 		userID pgtype.UUID,
 	) (sqlc.WorkspaceRole, error)
+	GetWorkspaceName(
+		ctx context.Context,
+		id pgtype.UUID,
+	) (string, error)
 }

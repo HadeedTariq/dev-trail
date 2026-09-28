@@ -30,6 +30,7 @@ type Querier interface {
 	FindUserWorkspacesById(ctx context.Context, arg FindUserWorkspacesByIdParams) (FindUserWorkspacesByIdRow, error)
 	FindWorkspacesByUserID(ctx context.Context, createdBy pgtype.UUID) ([]FindWorkspacesByUserIDRow, error)
 	GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error)
+	GetWorkspaceName(ctx context.Context, id pgtype.UUID) (string, error)
 	InsertEmailOtp(ctx context.Context, arg InsertEmailOtpParams) (EmailOtp, error)
 	InsertUser(ctx context.Context, arg InsertUserParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (pgtype.UUID, error)

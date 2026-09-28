@@ -8,6 +8,7 @@ import (
 	"time"
 
 	apperrors "github.com/HadeedTariq/dev-trail/internal/errors"
+	"github.com/HadeedTariq/dev-trail/internal/mailer"
 
 	repo "github.com/HadeedTariq/dev-trail/internal/adapters/postgresql/sqlc"
 	"github.com/HadeedTariq/dev-trail/internal/metrics"
@@ -23,14 +24,18 @@ import (
 type workspaceService struct {
 	workspaceRepo repository.WorkspaceRepository
 	userRepo      repository.UserRepository
+	mailer        mailer.Mailer
 }
 
 func NewWorkspaceService(workspaceRepo repository.WorkspaceRepository,
 	userRepo repository.UserRepository,
+
+	mailer mailer.Mailer,
 ) WorkspaceService {
 	return &workspaceService{
 		workspaceRepo: workspaceRepo,
 		userRepo:      userRepo,
+		mailer:        mailer,
 	}
 }
 
@@ -398,6 +403,8 @@ func (ws *workspaceService) DeleteWorkspace(
 type InviteMemberResult struct {
 	AddedDirectly bool   // true if the user was already on the platform
 	InvitationID  string // populated only if an email invitation was created
+	Email         string // populated only if an email invitation was created
+	Token         string // populated only if an email invitation was created
 }
 
 // ~ workspace member invitation functionality
@@ -422,10 +429,9 @@ func (ws *workspaceService) InviteMember(
 	)
 
 	defer func() {
-		duration := time.Since(start).Seconds()
 		metrics.WorkspaceOperationDuration.
 			WithLabelValues("invite").
-			Observe(duration)
+			Observe(time.Since(start).Seconds())
 
 		if err != nil {
 			metrics.WorkspaceOperationsTotal.
@@ -445,19 +451,19 @@ func (ws *workspaceService) InviteMember(
 		err = fmt.Errorf("invalid workspace ID: %w", parseErr)
 		return nil, err
 	}
+
 	invitedByUUID, parseErr := uuid.Parse(invitedBy)
 	if parseErr != nil {
 		err = fmt.Errorf("invalid invited_by user ID: %w", parseErr)
 		return nil, err
 	}
 
-	workspacePg := pgtype.UUID{Bytes: workspaceUUID, Valid: true}
-	invitedByPg := pgtype.UUID{Bytes: invitedByUUID, Valid: true}
-
-	// 2. Normalize email
+	// 2. Normalize + validate input
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+	if normalizedEmail == "" {
+		return nil, fmt.Errorf("email is required")
+	}
 
-	// 3. Validate role
 	workspaceRole := repo.WorkspaceRole(role)
 	switch workspaceRole {
 	case repo.WorkspaceRoleADMIN,
@@ -465,33 +471,42 @@ func (ws *workspaceService) InviteMember(
 		repo.WorkspaceRoleVIEWER:
 		// OK — OWNER cannot be assigned via invite
 	default:
-		err = fmt.Errorf("invalid role: %s", role)
-		return nil, err
+		return nil, fmt.Errorf("invalid role: %s", role)
 	}
 
+	workspacePg := pgtype.UUID{
+		Bytes: workspaceUUID,
+		Valid: true,
+	}
+	invitedByPg := pgtype.UUID{
+		Bytes: invitedByUUID,
+		Valid: true,
+	}
+
+	// 3. Run all DB writes in a single transaction
 	var inviteResult *InviteMemberResult
 
 	txErr := utils.ExecTx(ctx, func(q *repo.Queries) error {
-		// 4. Is this email already a member of the workspace?
+		// 3a. Is this email already a member?
 		_, memberErr := ws.workspaceRepo.FindMemberByWorkspaceAndEmail(
 			ctx, q, workspacePg, normalizedEmail,
 		)
 		if memberErr == nil {
-			// Found a member row → reject
 			return apperrors.ErrAlreadyMember
-
 		}
-		// pgx.ErrNoRows is the expected case — anything else is a real error
 		if !errors.Is(memberErr, pgx.ErrNoRows) {
 			return fmt.Errorf("check existing member: %w", memberErr)
 		}
 
-		emailPg := pgtype.Text{String: normalizedEmail, Valid: email != ""}
+		// 3b. Is this email a platform user?
+		emailPg := pgtype.Text{
+			String: normalizedEmail,
+			Valid:  true,
+		}
 
-		// 5. Is this email a platform user?
 		user, userErr := ws.userRepo.GetByEmail(ctx, q, emailPg)
 		if userErr == nil {
-			// 5a. Platform user → add directly
+			// 3b-i. Platform user → add directly
 			_, addErr := ws.workspaceRepo.AddMember(
 				ctx, q,
 				workspacePg,
@@ -503,14 +518,16 @@ func (ws *workspaceService) InviteMember(
 				return fmt.Errorf("add existing user as member: %w", addErr)
 			}
 
-			inviteResult = &InviteMemberResult{AddedDirectly: true}
+			inviteResult = &InviteMemberResult{
+				AddedDirectly: true,
+			}
 			return nil
 		}
 		if !errors.Is(userErr, pgx.ErrNoRows) {
 			return fmt.Errorf("lookup user by email: %w", userErr)
 		}
 
-		// 5b. Not a platform user → check for duplicate pending invite
+		// 3c. Not a platform user → check for duplicate pending invite
 		_, pendingErr := ws.workspaceRepo.FindPendingByWorkspaceAndEmail(
 			ctx, q, workspacePg, normalizedEmail,
 		)
@@ -521,13 +538,13 @@ func (ws *workspaceService) InviteMember(
 			return fmt.Errorf("check pending invitation: %w", pendingErr)
 		}
 
-		// 5c. Generate a secure token
+		// 3d. Generate a secure invite token
 		token, tokenErr := utils.GenerateInviteToken()
 		if tokenErr != nil {
 			return fmt.Errorf("generate invite token: %w", tokenErr)
 		}
 
-		expiresAt := time.Now().Add(7 * 24 * time.Hour) // 7 days
+		expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
 		inv, createErr := ws.workspaceRepo.CreateWorkspaceInvitation(
 			ctx, q,
@@ -542,12 +559,22 @@ func (ws *workspaceService) InviteMember(
 			return fmt.Errorf("create invitation: %w", createErr)
 		}
 
-		inviteResult = &InviteMemberResult{
-			InvitationID: inv.ID.String(),
+		// 3e. Extract invitation ID
+		var invitationID string
+		if inv.ID.Valid {
+			value, valueErr := inv.ID.Value()
+			if valueErr != nil {
+				return fmt.Errorf("get invitation ID: %w", valueErr)
+			}
+			if value != nil {
+				invitationID = value.(string)
+			}
 		}
 
-		// 6. Send the invite email AFTER commit
-		//    (deferred below — see note)
+		inviteResult = &InviteMemberResult{
+			InvitationID: invitationID,
+			Email:        normalizedEmail,
+		}
 		return nil
 	})
 
@@ -556,22 +583,39 @@ func (ws *workspaceService) InviteMember(
 		return nil, err
 	}
 
-	// 7. Send email outside the tx — never let email failure roll back the DB write
-	if inviteResult != nil && !inviteResult.AddedDirectly {
-		// ----- TODO: wire up your mail service -----
-		// inviteToken := ... need to return token from closure for this
-		// go ws.mailService.SendWorkspaceInvitation(
-		//     ctx,
-		//     normalizedEmail,
-		//     workspaceName,
-		//     invitedByName,
-		//     inviteToken,
-		// )
-		//
-		// Recommended: use a background goroutine or a queue so the HTTP
-		// response isn't blocked by SMTP latency. Log failures — don't
-		// return them to the caller, since the invite is already persisted.
+	if inviteResult == nil {
+		return nil, fmt.Errorf("invitation result was not created")
 	}
+
+	// 4. If added directly, no email needed — return now
+	if inviteResult.AddedDirectly {
+		return inviteResult, nil
+	}
+
+	// 5. Email invitation path — fetch display names for the email body
+	workspaceName, workspaceErr := ws.workspaceRepo.GetWorkspaceName(
+		ctx, workspacePg,
+	)
+	if workspaceErr != nil {
+		err = fmt.Errorf("get workspace name: %w", workspaceErr)
+		return nil, err
+	}
+
+	// 6. Send the email AFTER commit — never roll back on mail failure
+	if mailErr := ws.mailer.SendWorkspaceInvitation(
+		inviteResult.Email,
+		workspaceName,
+		inviteResult.Token,
+	); mailErr != nil {
+		utils.Logger.
+			WithError(mailErr).
+			WithField("email", inviteResult.Email).
+			WithField("workspace_id", workspaceID).
+			Error("Workspace invitation created but email could not be sent")
+	}
+
+	// 7. Never leak the token to the caller/API
+	inviteResult.Token = ""
 
 	return inviteResult, nil
 }

@@ -18,6 +18,12 @@ RETURNING
     updated_at;
 
 
+-- name: GetWorkspaceName :one
+SELECT name
+FROM workspaces
+WHERE id = $1
+LIMIT 1;
+
 -- name: FindWorkspacesByUserID :many
 SELECT
     id,

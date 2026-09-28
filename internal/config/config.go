@@ -81,11 +81,12 @@ type APIConfig struct {
 // SMTPConfig configures outbound transactional mail. An empty Host selects
 // the logging fallback mailer instead of a real SMTP transport.
 type SMTPConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	From     string
+	Host        string
+	Port        int
+	User        string
+	Password    string
+	From        string
+	FrontendURL string
 }
 
 // AppConfig holds settings about the user-facing application, used when the
@@ -178,11 +179,12 @@ func Load() (*Config, error) {
 			APIKeySecret: getEnv("API_KEY_SECRET", jwtSecret),
 		},
 		SMTP: SMTPConfig{
-			Host:     getEnv("SMTP_HOST", ""),
-			Port:     getEnvAsInt("SMTP_PORT", 587),
-			User:     getEnv("SMTP_USER", ""),
-			Password: getEnv("SMTP_PASSWORD", ""),
-			From:     getEnv("SMTP_FROM", "no-reply@localhost"),
+			Host:        getEnv("SMTP_HOST", ""),
+			Port:        getEnvAsInt("SMTP_PORT", 587),
+			User:        getEnv("SMTP_USER", ""),
+			Password:    getEnv("SMTP_PASSWORD", ""),
+			From:        getEnv("SMTP_FROM", "no-reply@localhost"),
+			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
 		},
 		App: AppConfig{
 			BaseURL: strings.TrimRight(getEnv("APP_BASE_URL", "http://localhost:5173"), "/"),

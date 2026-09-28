@@ -213,3 +213,15 @@ func (r *workspaceRepository) GetMemberRole(
 	}
 	return role, nil
 }
+
+func (r *workspaceRepository) GetWorkspaceName(
+	ctx context.Context,
+	id pgtype.UUID,
+) (string, error) {
+	name, err := r.queries.GetWorkspaceName(ctx, id)
+	if err != nil {
+		return "", err
+	}
+
+	return name, nil
+}

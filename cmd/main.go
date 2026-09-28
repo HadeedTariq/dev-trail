@@ -159,7 +159,7 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 
 	userService := service.NewUserService(userRepo, appMailer)
 	tokenService := service.NewTokenService(cfg.JWT, userRepo)
-	workspaceService := service.NewWorkspaceService(workspaceRepo, userRepo)
+	workspaceService := service.NewWorkspaceService(workspaceRepo, userRepo, appMailer)
 	cloudinaryClient, err := utils.NewCloudinary(cfg.Cloudinary)
 	if err != nil {
 		log.Fatalf("Failed to initialize Cloudinary: %v", err)
@@ -188,6 +188,6 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 	protected := router.Group("")
 	protected.Use(middleware.CheckAuth(tokenService))
 	{
-		handler.SetupWorkspaceRoutes(protected, workspaceHandler)
+		handler.SetupWorkspaceRoutes(protected, workspaceHandler, workspaceRepo)
 	}
 }

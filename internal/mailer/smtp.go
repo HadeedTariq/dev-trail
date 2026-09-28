@@ -3,6 +3,7 @@ package mailer
 import (
 	"fmt"
 	"net/smtp"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -13,20 +14,22 @@ import (
 // PLAIN auth is used when a username is configured; otherwise the message is
 // submitted unauthenticated (e.g. a local relay).
 type SMTPMailer struct {
-	host     string
-	port     int
-	username string
-	password string
-	from     string
+	host        string
+	port        int
+	username    string
+	password    string
+	from        string
+	frontendURL string
 }
 
 func NewSMTPMailer(cfg config.SMTPConfig) *SMTPMailer {
 	return &SMTPMailer{
-		host:     cfg.Host,
-		port:     cfg.Port,
-		username: cfg.User,
-		password: cfg.Password,
-		from:     cfg.From,
+		host:        cfg.Host,
+		port:        cfg.Port,
+		username:    cfg.User,
+		password:    cfg.Password,
+		from:        cfg.From,
+		frontendURL: cfg.FrontendURL,
 	}
 }
 
@@ -102,5 +105,60 @@ func (m *SMTPMailer) SendOtp(to, otp string) error {
 			Error("Failed to send OTP email")
 		return fmt.Errorf("send otp mail: %w", err)
 	}
+	return nil
+}
+
+func (m *SMTPMailer) SendWorkspaceInvitation(
+	to string,
+	workspaceName string,
+	token string,
+) error {
+	subject := "You've been invited to join " + workspaceName
+
+	inviteURL := m.frontendURL + "/invitations/accept?token=" + url.QueryEscape(token)
+
+	body := strings.Join([]string{
+		"Hi,",
+		"You has invited you to join the " + workspaceName + " workspace.",
+		"",
+		"Click the link below to accept the invitation:",
+		inviteURL,
+		"",
+		"This invitation is valid for 7 days.",
+		"",
+		"If you did not expect this invitation, you can safely ignore this email.",
+	}, "\r\n")
+
+	msg := strings.Join([]string{
+		"From: " + m.from,
+		"To: " + to,
+		"Subject: " + subject,
+		"MIME-Version: 1.0",
+		"Content-Type: text/plain; charset=UTF-8",
+		"",
+		body,
+	}, "\r\n")
+
+	addr := m.host + ":" + strconv.Itoa(m.port)
+
+	var auth smtp.Auth
+	if m.username != "" {
+		auth = smtp.PlainAuth("", m.username, m.password, m.host)
+	}
+
+	if err := smtp.SendMail(
+		addr,
+		auth,
+		m.from,
+		[]string{to},
+		[]byte(msg),
+	); err != nil {
+		log().WithError(err).
+			WithField("to", to).
+			Error("Failed to send workspace invitation email")
+
+		return fmt.Errorf("send workspace invitation mail: %w", err)
+	}
+
 	return nil
 }

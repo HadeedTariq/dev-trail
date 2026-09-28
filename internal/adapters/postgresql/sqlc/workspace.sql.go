@@ -517,6 +517,20 @@ func (q *Queries) GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMe
 	return role, err
 }
 
+const getWorkspaceName = `-- name: GetWorkspaceName :one
+SELECT name
+FROM workspaces
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetWorkspaceName(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceName, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const updateWorkspace = `-- name: UpdateWorkspace :one
 UPDATE workspaces
 SET

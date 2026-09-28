@@ -26,3 +26,8 @@ type MyWorkSpaces = {
   created_at: string;
   updated_at: string;
 };
+
+type InviteMemberResponse = {
+  added_directly: boolean;
+  invitation_id: string | null;
+};

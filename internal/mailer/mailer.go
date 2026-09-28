@@ -20,6 +20,11 @@ type Mailer interface {
 	// log it — only the mail transport may see the full link.
 	SendPasswordReset(to, resetURL string) error
 	SendOtp(to, otp string) error
+	SendWorkspaceInvitation(
+		to string,
+		workspaceName string,
+		token string,
+	) error
 }
 
 // NewFromConfig picks the implementation from configuration: SMTP when

@@ -1,5 +1,6 @@
 import { toast } from "@/hooks/use-toast";
 import { workspaceApi } from "@/lib/axios";
+import { InviteMemberInput } from "@/pages/app/validators/workspace.validator";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -156,6 +157,51 @@ export const useDeleteWorkspace = (workspaceId: string) => {
         description:
           error.response?.data?.error?.message ??
           "Unable to delete workspace. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+};
+
+export const useInviteMember = (workspaceId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["invite-workspace-member", workspaceId],
+
+    mutationFn: async (values: InviteMemberInput) => {
+      const { data } = await workspaceApi.post(
+        `/${workspaceId}/members/invite`,
+        values // JSON body, no FormData here
+      );
+      return data.data as InviteMemberResponse;
+    },
+
+    onSuccess: (result) => {
+      toast({
+        title: result.added_directly ? "Member added" : "Invitation sent",
+        description: result.added_directly
+          ? "The user has been added to the workspace."
+          : "They'll receive an email invitation shortly.",
+      });
+
+      // Refresh the members list so the new member/invite appears
+      queryClient.invalidateQueries({
+        queryKey: ["get-workspace-members", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["get-pending-invitations", workspaceId],
+      });
+    },
+
+    onError: (error: ErrResponse) => {
+      const message =
+        error.response?.data?.error?.message ??
+        "Unable to send invitation. Please try again.";
+
+      toast({
+        title: "Invitation failed",
+        description: message,
         variant: "destructive",
       });
     },

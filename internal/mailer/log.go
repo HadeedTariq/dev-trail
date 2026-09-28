@@ -1,6 +1,8 @@
 package mailer
 
-import "github.com/sirupsen/logrus"
+import (
+	"github.com/sirupsen/logrus"
+)
 
 // LogMailer is the development fallback used when no SMTP host is configured.
 // It logs that a reset mail would have been sent — recipient plus the link
@@ -26,5 +28,19 @@ func (m *LogMailer) SendOtp(to, otp string) error {
 		"to":  to,
 		"otp": otp, // Printed to dev terminal for easy testing without an SMTP server
 	}).Info("[DEV MAILER] Verification OTP email triggered")
+	return nil
+}
+
+func (m *LogMailer) SendWorkspaceInvitation(
+	to string,
+	workspaceName string,
+	token string,
+) error {
+
+	log().WithFields(logrus.Fields{
+		"to":             to,
+		"workspace_name": workspaceName,
+	}).Info("[DEV MAILER] Workspace invitation email triggered")
+
 	return nil
 }

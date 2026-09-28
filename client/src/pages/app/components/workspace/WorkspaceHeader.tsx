@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useDeleteWorkspace } from "@/hooks/workspace/useWorkspace";
+import { InviteMemberDialog } from "./InviteMember";
 
 interface WorkspaceHeaderProps {
   workspace: MyWorkSpaces;
@@ -97,6 +98,7 @@ export function WorkspaceHeader({
                 </Button>
               </div>
             )}
+            <InviteMemberDialog workspaceId={workspace.id} />
           </div>
 
           {/* Name + meta */}
