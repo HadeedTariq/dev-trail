@@ -24,6 +24,8 @@ var (
 	ErrTokenRevoked             = errors.New("invalid token")
 	ErrAlreadyMember            = errors.New("user is already a member of this workspace")
 	ErrInvitationAlreadyPending = errors.New("an invitation is already pending for this email")
+	ErrInvitationInvalid        = errors.New("invitation is invalid or expired")
+	ErrInvitationEmailMismatch  = errors.New("invitation was issued for a different email")
 )
 
 // Error codes

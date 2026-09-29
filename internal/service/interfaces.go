@@ -102,6 +102,13 @@ type WorkspaceService interface {
 		email string,
 		role string,
 	) (result *InviteMemberResult, err error)
+	VerifyInvitation(ctx context.Context, token string) (*InvitationPreview, error)
+	AcceptInvitation(
+		ctx context.Context,
+		token string,
+		userID string,
+		userEmail string,
+	) (workspaceID string, err error)
 }
 
 type ImageService interface {

@@ -207,3 +207,60 @@ export const useInviteMember = (workspaceId: string) => {
     },
   });
 };
+
+export const useVerifyInvitation = (token: string | null) => {
+  return useQuery({
+    queryKey: ["verify-invitation", token],
+    queryFn: async () => {
+      const { data } = await workspaceApi.get(`/invitations/verify/${token}`);
+      return data.data as InvitationPreview;
+    },
+    enabled: !!token,
+    retry: false, // don't retry invalid tokens
+    refetchOnWindowFocus: false,
+    staleTime: 60_000, // 1 min — enough for the page
+  });
+};
+
+export const useAcceptInvitation = () => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationKey: ["accept-invitation"],
+
+    mutationFn: async (token: string) => {
+      const { data } = await workspaceApi.post(`/invitations/accept`, {
+        token,
+      });
+      return data.data as { workspace_id: string };
+    },
+
+    onSuccess: ({ workspace_id }) => {
+      toast({
+        title: "Welcome!",
+        description: "You've joined the workspace.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["get-my-workspaces"] });
+      queryClient.invalidateQueries({
+        queryKey: ["get-workspace-members", workspace_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["get-pending-invitations", workspace_id],
+      });
+
+      navigate(`/w/${workspace_id}`, { replace: true });
+    },
+
+    onError: (error: ErrResponse) => {
+      toast({
+        title: "Could not accept invitation",
+        description:
+          error.response?.data?.error?.message ??
+          "The invitation may have expired. Ask an admin to send a new one.",
+        variant: "destructive",
+      });
+    },
+  });
+};

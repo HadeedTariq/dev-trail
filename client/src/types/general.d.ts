@@ -31,3 +31,12 @@ type InviteMemberResponse = {
   added_directly: boolean;
   invitation_id: string | null;
 };
+
+type InvitationPreview = {
+  valid: boolean;
+  email: string;
+  role: WorkspaceRole;
+  workspace_name: string;
+  workspace_image: string | null;
+  expires_at: string;
+};

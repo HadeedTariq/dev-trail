@@ -259,6 +259,26 @@ func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, response)
 }
 
+func (h *WorkspaceHandler) VerifyInvitation(c *gin.Context) {
+	token := c.Param("token")
+	if token == "" {
+		utils.RespondBadRequest(c, "Token is required")
+		return
+	}
+
+	preview, err := h.workspaceService.VerifyInvitation(c.Request.Context(), token)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrInvitationInvalid) {
+			utils.RespondNotFound(c, "Invitation is invalid or expired")
+			return
+		}
+		utils.RespondInternalError(c)
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, preview)
+}
+
 func (h *WorkspaceHandler) InviteMember(c *gin.Context) {
 	logger := utils.LogHandlerStart(c, "WorkspaceHandler.InviteMember")
 

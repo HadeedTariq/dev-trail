@@ -7,15 +7,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupWorkspaceRoutes(router *gin.RouterGroup, handler *WorkspaceHandler, workspaceRepo repository.WorkspaceRepository) {
-	workspace := router.Group("/workspace")
+func SetupWorkspaceRoutes(protectedRouter *gin.RouterGroup, publicRouter *gin.RouterGroup, handler *WorkspaceHandler, workspaceRepo repository.WorkspaceRepository) {
+	protectedWorkspace := protectedRouter.Group("/workspace")
 	{
-		workspace.GET("/", handler.GetWorkspaces)
-		workspace.POST("/create", handler.CreateWorkspace)
-		workspace.PUT("/update/:id", handler.UpdateWorkspace)
-		workspace.GET("/:id", handler.GetWorkspaceByID)
-		workspace.DELETE("/delete/:id", handler.DeleteWorkspace)
+		protectedWorkspace.GET("/", handler.GetWorkspaces)
+		protectedWorkspace.POST("/create", handler.CreateWorkspace)
+		protectedWorkspace.PUT("/update/:id", handler.UpdateWorkspace)
+		protectedWorkspace.GET("/:id", handler.GetWorkspaceByID)
+		protectedWorkspace.DELETE("/delete/:id", handler.DeleteWorkspace)
 		// ~ so over there the specific middleware can be used like for this action only admin and like the owner can make request
-		workspace.POST("/:workspaceId/members/invite", middleware.RequireWorkspaceRole(workspaceRepo, repo.WorkspaceRoleADMIN, repo.WorkspaceRoleOWNER), handler.InviteMember)
+		protectedWorkspace.POST("/:workspaceId/members/invite", middleware.RequireWorkspaceRole(workspaceRepo, repo.WorkspaceRoleADMIN, repo.WorkspaceRoleOWNER), handler.InviteMember)
+
+	}
+	publicWorkspace := publicRouter.Group("/workspace")
+	{
+		publicWorkspace.GET("/invitations/verify/:token", handler.VerifyInvitation)
 	}
 }

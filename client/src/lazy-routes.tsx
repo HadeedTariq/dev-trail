@@ -4,6 +4,9 @@ export const HomePage = React.lazy(() => import("./pages/app/routes/HomePage"));
 export const CreateWorkSpace = React.lazy(
   () => import("./pages/app/routes/workspace/CreateWorkSpace")
 );
+export const InvitationAcceptPage = React.lazy(
+  () => import("./pages/app/routes/InvitationAcceptPage")
+);
 export const UpdateWorkSpace = React.lazy(
   () => import("./pages/app/routes/workspace/UpdateWorkSpace")
 );

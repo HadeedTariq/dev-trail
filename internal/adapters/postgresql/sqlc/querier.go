@@ -22,6 +22,7 @@ type Querier interface {
 	FindInvitationByToken(ctx context.Context, token string) (WorkspaceInvitation, error)
 	// ~ workspace invitation related queries
 	FindMemberByWorkspaceAndEmail(ctx context.Context, arg FindMemberByWorkspaceAndEmailParams) (WorkspaceMember, error)
+	FindMemberByWorkspaceAndUser(ctx context.Context, arg FindMemberByWorkspaceAndUserParams) (WorkspaceMember, error)
 	FindPendingInvitationByWorkspaceAndEmail(ctx context.Context, arg FindPendingInvitationByWorkspaceAndEmailParams) (WorkspaceInvitation, error)
 	FindPendingInvitationsByEmail(ctx context.Context, email string) ([]WorkspaceInvitation, error)
 	FindPendingInvitationsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) ([]WorkspaceInvitation, error)

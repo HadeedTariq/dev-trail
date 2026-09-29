@@ -87,4 +87,20 @@ type WorkspaceRepository interface {
 		ctx context.Context,
 		id pgtype.UUID,
 	) (string, error)
+	FindByToken(
+		ctx context.Context,
+		q *sqlc.Queries,
+		token string,
+	) (sqlc.WorkspaceInvitation, error)
+	MarkInvitationAccepted(
+		ctx context.Context,
+		q *sqlc.Queries,
+		id pgtype.UUID,
+	) (*sqlc.WorkspaceInvitation, error)
+	FindMemberByWorkspaceAndUser(
+		ctx context.Context,
+		q *sqlc.Queries,
+		workspaceID pgtype.UUID,
+		userID pgtype.UUID,
+	) (*sqlc.WorkspaceMember, error)
 }

@@ -160,3 +160,18 @@ SELECT role
 FROM workspace_members
 WHERE workspace_id = $1 
   AND user_id = $2;
+
+-- name: FindMemberByWorkspaceAndUser :one
+SELECT
+    id,
+    workspace_id,
+    user_id,
+    role,
+    invited_by,
+    joined_at,
+    created_at,
+    updated_at
+FROM workspace_members
+WHERE workspace_id = $1
+  AND user_id = $2
+LIMIT 1;

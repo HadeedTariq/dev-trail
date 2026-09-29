@@ -43,6 +43,10 @@ function App() {
     <Suspense fallback={<PageLoadingBar />}>
       <Routes>
         <Route
+          path="/invitations/accept"
+          element={<R.InvitationAcceptPage />}
+        />
+        <Route
           path="/"
           element={
             <R.AuthLayout>

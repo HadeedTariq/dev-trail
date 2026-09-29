@@ -297,6 +297,43 @@ func (q *Queries) FindMemberByWorkspaceAndEmail(ctx context.Context, arg FindMem
 	return i, err
 }
 
+const findMemberByWorkspaceAndUser = `-- name: FindMemberByWorkspaceAndUser :one
+SELECT
+    id,
+    workspace_id,
+    user_id,
+    role,
+    invited_by,
+    joined_at,
+    created_at,
+    updated_at
+FROM workspace_members
+WHERE workspace_id = $1
+  AND user_id = $2
+LIMIT 1
+`
+
+type FindMemberByWorkspaceAndUserParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	UserID      pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) FindMemberByWorkspaceAndUser(ctx context.Context, arg FindMemberByWorkspaceAndUserParams) (WorkspaceMember, error) {
+	row := q.db.QueryRow(ctx, findMemberByWorkspaceAndUser, arg.WorkspaceID, arg.UserID)
+	var i WorkspaceMember
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.Role,
+		&i.InvitedBy,
+		&i.JoinedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const findPendingInvitationByWorkspaceAndEmail = `-- name: FindPendingInvitationByWorkspaceAndEmail :one
 SELECT id, workspace_id, email, invited_by, role, token, expires_at, accepted_at, created_at, updated_at
 FROM workspace_invitations

@@ -13,16 +13,21 @@ import (
 )
 
 type AuthHandler struct {
-	userService  service.UserService
-	tokenService service.TokenService
-	jwtConfig    config.JWTConfig
+	userService      service.UserService
+	tokenService     service.TokenService
+	workspaceService service.WorkspaceService
+	jwtConfig        config.JWTConfig
 }
 
-func NewAuthHandler(userService service.UserService, tokenService service.TokenService, jwtConfig config.JWTConfig) *AuthHandler {
+func NewAuthHandler(userService service.UserService,
+	tokenService service.TokenService,
+	workspaceService service.WorkspaceService,
+	jwtConfig config.JWTConfig) *AuthHandler {
 	return &AuthHandler{
-		userService:  userService,
-		tokenService: tokenService,
-		jwtConfig:    jwtConfig,
+		userService:      userService,
+		tokenService:     tokenService,
+		jwtConfig:        jwtConfig,
+		workspaceService: workspaceService,
 	}
 }
 

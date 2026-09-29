@@ -225,3 +225,58 @@ func (r *workspaceRepository) GetWorkspaceName(
 
 	return name, nil
 }
+
+func (r *workspaceRepository) FindByToken(
+	ctx context.Context,
+	q *sqlc.Queries,
+	token string,
+) (sqlc.WorkspaceInvitation, error) {
+	if q == nil {
+		q = r.queries
+	}
+
+	data, err := q.FindInvitationByToken(ctx, token)
+	if err != nil {
+		return sqlc.WorkspaceInvitation{}, fmt.Errorf("get workspace member role: %w", err)
+	}
+	return data, nil
+}
+
+func (r *workspaceRepository) MarkInvitationAccepted(
+	ctx context.Context,
+	q *sqlc.Queries,
+	id pgtype.UUID,
+) (*sqlc.WorkspaceInvitation, error) {
+	if q == nil {
+		q = r.queries
+	}
+
+	inv, err := q.AcceptInvitation(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("mark invitation accepted: %w", err)
+	}
+	return &inv, nil
+}
+
+func (r *workspaceRepository) FindMemberByWorkspaceAndUser(
+	ctx context.Context,
+	q *sqlc.Queries,
+	workspaceID pgtype.UUID,
+	userID pgtype.UUID,
+) (*sqlc.WorkspaceMember, error) {
+	if q == nil {
+		q = r.queries
+	}
+
+	member, err := q.FindMemberByWorkspaceAndUser(
+		ctx,
+		sqlc.FindMemberByWorkspaceAndUserParams{
+			WorkspaceID: workspaceID,
+			UserID:      userID,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find member by workspace and user: %w", err)
+	}
+	return &member, nil
+}

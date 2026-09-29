@@ -102,7 +102,7 @@ func main() {
 func setupRouter(cfg *config.Config, dbPool *pgxpool.Pool) *gin.Engine {
 	// data, err := dbPool.Exec(
 	// 	context.Background(),
-	// 	"select * from workspace_members",
+	// 	"delete from workspace_invitations where email='hadeedgggg@gmail.com'",
 	// )
 
 	// if err != nil {
@@ -166,7 +166,7 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 	}
 	imageService := service.NewImageService(cloudinaryClient)
 
-	authHandler := handler.NewAuthHandler(userService, tokenService, cfg.JWT)
+	authHandler := handler.NewAuthHandler(userService, tokenService, workspaceService, cfg.JWT)
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, imageService)
 
 	// Routes
@@ -188,6 +188,6 @@ func setupDependencies(router *gin.RouterGroup, cfg *config.Config, dbPool *pgxp
 	protected := router.Group("")
 	protected.Use(middleware.CheckAuth(tokenService))
 	{
-		handler.SetupWorkspaceRoutes(protected, workspaceHandler, workspaceRepo)
+		handler.SetupWorkspaceRoutes(protected, public, workspaceHandler, workspaceRepo)
 	}
 }

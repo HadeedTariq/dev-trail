@@ -21,6 +21,15 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+type InvitationPreview struct {
+	Valid          bool               `json:"valid"`
+	Email          string             `json:"email"`
+	Role           repo.WorkspaceRole `json:"role"`
+	WorkspaceName  string             `json:"workspace_name"`
+	WorkspaceImage *string            `json:"workspace_image"`
+	ExpiresAt      time.Time          `json:"expires_at"`
+}
+
 type workspaceService struct {
 	workspaceRepo repository.WorkspaceRepository
 	userRepo      repository.UserRepository
@@ -574,6 +583,7 @@ func (ws *workspaceService) InviteMember(
 		inviteResult = &InviteMemberResult{
 			InvitationID: invitationID,
 			Email:        normalizedEmail,
+			Token:        token,
 		}
 		return nil
 	})
@@ -618,4 +628,177 @@ func (ws *workspaceService) InviteMember(
 	inviteResult.Token = ""
 
 	return inviteResult, nil
+}
+
+func (ws *workspaceService) VerifyInvitation(ctx context.Context, token string) (*InvitationPreview, error) {
+	inv, err := ws.workspaceRepo.FindByToken(ctx, nil, token)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apperrors.ErrInvitationInvalid
+		}
+		return nil, err
+	}
+
+	wsName, _ := ws.workspaceRepo.GetWorkspaceName(ctx, inv.WorkspaceID)
+
+	return &InvitationPreview{
+		Valid:          true,
+		Email:          inv.Email,
+		Role:           inv.Role,
+		WorkspaceName:  wsName,
+		WorkspaceImage: nil, // populate if your workspaces table has it
+		ExpiresAt:      inv.ExpiresAt.Time,
+	}, nil
+}
+
+func (ws *workspaceService) AcceptInvitation(
+	ctx context.Context,
+	token string,
+	userID string,
+	userEmail string,
+) (workspaceID string, err error) {
+	start := time.Now()
+
+	tr := otel.Tracer("workspaceService")
+	ctx, span := tr.Start(ctx, "workspaceService.AcceptInvitation")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("invitation.token_prefix", safeTokenPrefix(token)),
+		attribute.String("invitation.user_id", userID),
+		attribute.String("invitation.user_email", userEmail),
+	)
+
+	defer func() {
+		metrics.WorkspaceOperationDuration.
+			WithLabelValues("accept_invitation").
+			Observe(time.Since(start).Seconds())
+
+		if err != nil {
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("accept_invitation", "error").
+				Inc()
+			span.RecordError(err)
+		} else {
+			metrics.WorkspaceOperationsTotal.
+				WithLabelValues("accept_invitation", "success").
+				Inc()
+		}
+	}()
+
+	// 1. Validate input
+	if token == "" {
+		err = fmt.Errorf("token is required")
+		return "", err
+	}
+
+	userUUID, parseErr := uuid.Parse(userID)
+	if parseErr != nil {
+		err = fmt.Errorf("invalid user ID: %w", parseErr)
+		return "", err
+	}
+
+	normalizedEmail := strings.ToLower(strings.TrimSpace(userEmail))
+	if normalizedEmail == "" {
+		err = fmt.Errorf("user email is required")
+		return "", err
+	}
+
+	userPg := pgtype.UUID{
+		Bytes: userUUID,
+		Valid: true,
+	}
+
+	// 2. Run everything in one transaction — read invite, verify, insert
+	//    member, mark invite accepted. All-or-nothing.
+	var resolvedWorkspaceID string
+
+	txErr := utils.ExecTx(ctx, func(q *repo.Queries) error {
+		inv, findErr := ws.workspaceRepo.FindByToken(ctx, q, token)
+		if findErr != nil {
+			if errors.Is(findErr, pgx.ErrNoRows) {
+				return apperrors.ErrInvitationInvalid
+			}
+			return fmt.Errorf("find invitation by token: %w", findErr)
+		}
+
+		// 2b. The invite's email must match the logged-in user's email
+		if !strings.EqualFold(inv.Email, normalizedEmail) {
+			return apperrors.ErrInvitationEmailMismatch
+		}
+
+		// 2c. Belt-and-suspenders: check expiry in the service too.
+		//     If the DB query ever changes, this still protects us.
+		if inv.ExpiresAt.Valid && time.Now().After(inv.ExpiresAt.Time) {
+			return apperrors.ErrInvitationInvalid
+		}
+
+		// 2d. Guard against double-add. The UNIQUE (workspace_id, user_id)
+		//     constraint on workspace_members also protects us, but we want
+		//     a friendly error instead of a raw constraint violation.
+		_, memberErr := ws.workspaceRepo.FindMemberByWorkspaceAndUser(
+			ctx, q, inv.WorkspaceID, userPg,
+		)
+		if memberErr == nil {
+			return apperrors.ErrAlreadyMember
+		}
+		if !errors.Is(memberErr, pgx.ErrNoRows) {
+			return fmt.Errorf("check existing member: %w", memberErr)
+		}
+
+		// 2e. Insert the member — this is where they actually join
+		_, addErr := ws.workspaceRepo.AddMember(
+			ctx, q,
+			inv.WorkspaceID,
+			userPg,
+			inv.Role,
+			inv.InvitedBy,
+		)
+		if addErr != nil {
+			return fmt.Errorf("add workspace member: %w", addErr)
+		}
+
+		// 2f. Mark the invitation as accepted so the token can't be reused
+		_, acceptErr := ws.workspaceRepo.MarkInvitationAccepted(
+			ctx, q, inv.ID,
+		)
+		if acceptErr != nil {
+			// If this fails, the whole tx rolls back — no orphaned member
+			return fmt.Errorf("mark invitation accepted: %w", acceptErr)
+		}
+
+		// 2g. Extract workspace ID for the caller to redirect to
+		if inv.WorkspaceID.Valid {
+			value, valueErr := inv.WorkspaceID.Value()
+			if valueErr != nil {
+				return fmt.Errorf("get workspace ID: %w", valueErr)
+			}
+			if s, ok := value.(string); ok {
+				resolvedWorkspaceID = s
+			}
+		}
+
+		return nil
+	})
+
+	if txErr != nil {
+		err = txErr
+		return "", err
+	}
+
+	if resolvedWorkspaceID == "" {
+		err = fmt.Errorf("workspace ID was not resolved")
+		return "", err
+	}
+
+	return resolvedWorkspaceID, nil
+}
+
+// safeTokenPrefix returns a short, non-sensitive prefix of the token
+// for tracing. Never log the full token — it's a credential.
+func safeTokenPrefix(token string) string {
+	if len(token) <= 8 {
+		return "…"
+	}
+	return token[:8] + "…"
 }
