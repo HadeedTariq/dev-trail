@@ -132,9 +132,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	utils.LogHandlerResponse(logger, http.StatusCreated, response)
 	utils.RespondSuccess(c, http.StatusCreated, response)
 }
+
 func (h *AuthHandler) OtpEmailChecker(c *gin.Context) {
 	logger := utils.LogHandlerStart(c, "AuthHandler.OtpEmailChecker")
 	ctx := c.Request.Context()
+
+	// The invite token travels as a query param: /auth/otp/verify?invite=XYZ
+	inviteToken := c.Query("invite")
 
 	var req EmailOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -142,6 +146,7 @@ func (h *AuthHandler) OtpEmailChecker(c *gin.Context) {
 		return
 	}
 
+	// 1. Verify OTP + fetch the user
 	user, err := h.userService.OtpValidator(ctx, req.Email, req.OTP)
 	if err != nil {
 		logger.WithError(err).Warn("OTP validation failed")
@@ -156,10 +161,10 @@ func (h *AuthHandler) OtpEmailChecker(c *gin.Context) {
 		default:
 			utils.RespondInternalError(c)
 		}
-
 		return
 	}
 
+	// 2. Issue tokens
 	tokens, err := h.tokenService.IssueTokens(ctx, user)
 	if err != nil {
 		logger.WithError(err).Error("Failed to issue tokens")
@@ -169,14 +174,62 @@ func (h *AuthHandler) OtpEmailChecker(c *gin.Context) {
 
 	h.setAuthCookies(c, tokens)
 
+	// 3. If an invite token was carried through signup, try to accept it.
+	//    Failures here are NON-FATAL — the user is already authenticated.
+	var (
+		acceptedWorkspaceID string
+		inviteError         string
+	)
+
+	if inviteToken != "" {
+		userID := extractUserIDFromUser(user) // helper — see below
+		userEmail := extractUserEmailFromUser(user)
+
+		wsID, acceptErr := h.workspaceService.AcceptInvitation(
+			ctx,
+			inviteToken,
+			userID,
+			userEmail,
+		)
+		if acceptErr != nil {
+			logger.WithError(acceptErr).
+				WithField("invite_token_prefix", safeTokenPrefix(inviteToken)).
+				Warn("invite acceptance failed during signup")
+
+			switch {
+			case errors.Is(acceptErr, apperrors.ErrInvitationInvalid):
+				inviteError = "The invitation is invalid or has expired."
+			case errors.Is(acceptErr, apperrors.ErrInvitationEmailMismatch):
+				inviteError = "This invitation was issued for a different email address."
+			case errors.Is(acceptErr, apperrors.ErrAlreadyMember):
+				// Not really an error — user is already in. Silently treat
+				// as success and resolve the workspace ID for redirect.
+				inviteError = ""
+			default:
+				inviteError = "Could not process the invitation. Please try again."
+			}
+		} else {
+			acceptedWorkspaceID = wsID
+		}
+	}
+
+	// 4. Build the response
+	responseData := gin.H{}
+	if acceptedWorkspaceID != "" {
+		responseData["accepted_workspace_id"] = acceptedWorkspaceID
+	}
+	if inviteError != "" {
+		responseData["invite_error"] = inviteError
+	}
+
 	response := utils.Response{
 		Message: "OTP verified and user logged in successfully.",
+		Data:    responseData,
 	}
 
 	utils.LogHandlerResponse(logger, http.StatusOK, response)
 	utils.RespondSuccess(c, http.StatusOK, response)
 }
-
 func (h *AuthHandler) AuthenticateWithCredentials(c *gin.Context) {
 	logger := utils.LogHandlerStart(c, "AuthHandler.AuthenticateWithCredentials")
 	ctx := c.Request.Context()
