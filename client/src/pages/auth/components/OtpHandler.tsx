@@ -20,10 +20,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
 import { useDispatch } from "react-redux";
 import { setAccessToken } from "@/reducers/fullAppReducer";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const FormSchema = z.object({
   pin: z.string().min(6, {
@@ -36,10 +35,12 @@ export function OtpHandler({
 }: {
   setShowOtp: (value: boolean) => void;
 }) {
+  const [params] = useSearchParams();
+  const inviteToken = params.get("invite");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
-  const { t } = useTranslation();
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -50,47 +51,77 @@ export function OtpHandler({
   const { mutate: handleOtp, isPending } = useMutation({
     mutationKey: ["otp-handler"],
     mutationFn: async ({ email, otp }: { email: string; otp: string }) => {
-      const { data } = await authApi.post("/otp-email-checker", {
-        otp,
-        email,
-      });
+      const { data } = await authApi.post(
+        "/otp-email-checker",
+        {
+          otp,
+          email,
+        },
+        {
+          params: inviteToken ? { invite: inviteToken } : undefined,
+        }
+      );
       return data;
     },
     onSuccess: (data) => {
       toast({
-        title: data.message || t("auth.otp.toast.success"),
+        title: data?.message || "Email verified successfully.",
       });
+
       setShowOtp(false);
       localStorage.removeItem("current-email");
+
       const { accessToken, refreshToken } = data;
-      dispatch(setAccessToken(accessToken));
-      localStorage.setItem("refreshToken", refreshToken);
+      if (accessToken) {
+        dispatch(setAccessToken(accessToken));
+      }
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      }
+
       queryClient.invalidateQueries({
         queryKey: ["authenticateUser-refresh", "authenticateUser"],
       });
-      navigate("/");
+
+      if (data?.workspaceId) {
+        navigate(`/workspace/${data.workspaceId}`);
+      } else {
+        navigate("/");
+      }
     },
     onError: (error: ErrResponse) => {
       toast({
-        title: error.response?.data.message || t("auth.otp.toast.error"),
+        title:
+          error.response?.data?.error.message ||
+          error.response?.data?.error?.message ||
+          "Verification failed. Please check the code and try again.",
         variant: "destructive",
       });
-      setShowOtp(false);
     },
   });
 
   function onSubmit(data: z.infer<typeof FormSchema>) {
-    const storageData = JSON.parse(
-      localStorage.getItem("current-email") as string,
-    );
-    if (!storageData || !storageData.email) {
+    const rawStorage = localStorage.getItem("current-email");
+    let storageEmail = "";
+
+    if (rawStorage) {
+      try {
+        const parsed = JSON.parse(rawStorage);
+        storageEmail = parsed?.email || "";
+      } catch {
+        storageEmail = rawStorage;
+      }
+    }
+
+    if (!storageEmail) {
       toast({
-        title: "Email is required ",
+        title: "Email not found. Please re-enter your email.",
         variant: "destructive",
       });
       return;
     }
-    handleOtp({ otp: data.pin, email: storageData.email });
+
+    handleOtp({ otp: data.pin, email: storageEmail });
   }
 
   return (
@@ -101,7 +132,7 @@ export function OtpHandler({
           name="pin"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t("auth.otp.field.label")}</FormLabel>
+              <FormLabel>Verification Code</FormLabel>
               <FormControl>
                 <InputOTP maxLength={6} {...field}>
                   <InputOTPGroup>
@@ -115,17 +146,15 @@ export function OtpHandler({
                 </InputOTP>
               </FormControl>
               <FormDescription>
-                {t("auth.otp.field.description")}
+                Enter the 6-digit verification code sent to your email.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" disabled={isPending} variant={"app"}>
-          {isPending
-            ? t("auth.otp.button.loading")
-            : t("auth.otp.button.submit")}
+        <Button type="submit" disabled={isPending} variant="app">
+          {isPending ? "Verifying..." : "Verify Email"}
         </Button>
       </form>
     </Form>
